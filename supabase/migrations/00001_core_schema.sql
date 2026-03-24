@@ -527,3 +527,13 @@ CREATE INDEX idx_validation_issues_parent ON validation_issues(parent_entity_typ
 CREATE UNIQUE INDEX uq_one_published_version_per_ruleset
     ON rule_set_versions(rule_set_id)
     WHERE lifecycle_status = 'published';
+
+-- Enforce unique qualification_type key per ownership context.
+-- Two partial indexes needed because NULL != NULL in PostgreSQL unique constraints.
+CREATE UNIQUE INDEX uq_qualtype_key_platform
+    ON qualification_types(key)
+    WHERE owner_scope = 'platform';
+
+CREATE UNIQUE INDEX uq_qualtype_key_org
+    ON qualification_types(owner_organization_id, key)
+    WHERE owner_scope = 'organization';

@@ -6,9 +6,9 @@ Advisor Workspace
 
 ## Current status
 
-The project has been redefined from scratch.
+Migration 1 (core schema) has been implemented and validated against a live Supabase PostgreSQL instance.
 
-We are still in the pre-code foundation phase.
+The project is past the pre-code foundation phase and into early implementation.
 
 ## Authoritative references
 
@@ -31,25 +31,25 @@ We are still in the pre-code foundation phase.
 - No-rules runtime behavior
 - Normalization ownership
 
+## What has been implemented
+
+- Migration 1: core schema (`supabase/migrations/00001_core_schema.sql`)
+  - 17 enums, 30 tables, 23 indexes, 3 partial unique indexes
+  - Covers: Identity, Catalog, Overlay, Qualification, Rules, Evaluation, Governance
+  - Validated against live Supabase PostgreSQL via `supabase db reset`
+- Supabase project initialized (`supabase/config.toml`)
+
 ## What has NOT started yet
 
-- No migrations have been implemented yet
-- No application code should be assumed
-- No admin UI exists
-- No evaluation engine exists in the new repo
-- No import pipeline exists yet
+- No Migration 2 (import pipeline tables)
+- No application code
+- No admin UI
+- No evaluation engine
+- No RLS policies
 
 ## Current recommended next step
 
-Create the repo baseline and documentation files, then write the first Claude Code prompt for:
-
-- core schema migration only
-- enums
-- constraints
-- indexes
-- no UI
-- no imports
-- no extra features
+Proceed to Migration 2 (import pipeline tables: `import_batches`, `import_batch_rows`, `publish_actions`) or RLS policies, depending on priority.
 
 ## Critical constraints to remember
 
@@ -62,7 +62,7 @@ Create the repo baseline and documentation files, then write the first Claude Co
 
 ## Last architectural state
 
-We are ready to move from documentation into the first implementation prompt, but only after the repo baseline files are created.
+Migration 1 core schema is implemented and runtime-validated on Supabase. No application code exists.
 
 ## If this project is reopened in a new chat
 

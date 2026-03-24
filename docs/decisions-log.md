@@ -113,3 +113,27 @@
 **Title:** Import pipeline is not phase 1
 **Status:** Final
 **Decision:** Core schema comes first. Import/staging/publish comes after core schema is stable.
+
+---
+
+## Decision 015
+
+**Title:** Migration 1 accepted after local runtime validation
+**Status:** Final
+**Decision:** Migration 1 core schema (30 tables, 17 enums, 26 indexes) was validated by applying it against a live Supabase PostgreSQL instance via `supabase db reset`. It is now the accepted baseline schema.
+
+---
+
+## Decision 016
+
+**Title:** qualification_types uniqueness uses partial unique indexes
+**Status:** Final
+**Decision:** A single composite unique constraint cannot enforce key uniqueness for platform-owned rows because PostgreSQL treats NULLs as distinct. Two partial unique indexes are used: one for platform-owned rows (`UNIQUE (key) WHERE owner_scope = 'platform'`) and one for organization-owned rows (`UNIQUE (owner_organization_id, key) WHERE owner_scope = 'organization'`).
+
+---
+
+## Decision 017
+
+**Title:** Supabase CLI is the standard local migration workflow
+**Status:** Final
+**Decision:** The project uses Supabase CLI for migration management and local development. Migrations live in `supabase/migrations/`. Local validation uses `supabase db reset`.
