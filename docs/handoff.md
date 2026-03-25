@@ -38,18 +38,21 @@ The project is past the pre-code foundation phase and into early implementation.
   - Covers: Identity, Catalog, Overlay, Qualification, Rules, Evaluation, Governance
   - Validated against live Supabase PostgreSQL via `supabase db reset`
 - Supabase project initialized (`supabase/config.toml`)
+- `src/types/enums.ts` — temporary enum union types aligned with PostgreSQL enums
+- `src/types/database.ts` — minimal DB-facing interfaces for early session/org-context type foundation
 
 ## What has NOT started yet
 
 - No Migration 2 (import pipeline tables)
-- No application code
+- No application scaffold (Next.js + Supabase)
 - No admin UI
 - No evaluation engine
+- No normalization layer
 - No RLS policies
 
 ## Current recommended next step
 
-Proceed to Migration 2 (import pipeline tables: `import_batches`, `import_batch_rows`, `publish_actions`) or RLS policies, depending on priority.
+Minimal Next.js + Supabase application scaffold.
 
 ## Critical constraints to remember
 

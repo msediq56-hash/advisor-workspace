@@ -2,9 +2,7 @@
 
 ## Current phase
 
-Pre-code foundation completed.
-
-Repository baseline setup is in progress.
+Migration 1 accepted. Minimal type foundation exists. No app scaffold yet.
 
 ## What is already done
 
@@ -12,33 +10,18 @@ Repository baseline setup is in progress.
 - System architecture completed
 - Database design completed
 - Schema map completed
-- ChatGPT project instructions configured
-- Core reference files uploaded to project sources
+- Migration 1 implemented and accepted after local runtime validation
+- Minimal DB-facing TypeScript type layer started (`src/types/enums.ts`, `src/types/database.ts`)
 
-## What must happen now
+## What must happen next
 
-1. Create new repo
-2. Add baseline documentation files
-3. Add CLAUDE.md
-4. Copy authoritative docs into repo markdown files
-5. Commit baseline
-6. Prepare first Claude Code prompt for core schema migration only
+1. Minimal Next.js + Supabase application scaffold
+2. Continue with backend foundation work
 
 ## What must NOT happen now
 
-- No UI implementation
-- No auth implementation
-- No import workflow implementation
-- No CRM-like features
-- No refactor of old repos
-- No direct coding before baseline docs exist in repo
-
-## Immediate next deliverable
-
-First Claude Code prompt for:
-
-- core schema migration
-- enums
-- check constraints
-- indexes
-- no app logic outside schema
+- No evaluation engine
+- No normalization layer
+- No import pipeline
+- No admin UI
+- No CRM features
