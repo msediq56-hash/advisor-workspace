@@ -1,17 +1,18 @@
 /**
- * Server-side British subject-based grade normalization baseline.
+ * Server-side British subject-based normalization with level handling.
  *
  * Converts a validated RawBritishCurriculumProfile into a normalized
- * profile with numeric grade values per subject. Preserves subject
- * levels and raw grade labels.
+ * profile with numeric grade values, normalized grade keys, subject
+ * level keys, and segment keys per subject.
  *
- * Does not classify subjects, count them, or evaluate eligibility.
+ * Does not classify subjects by name, count them, or evaluate eligibility.
  *
  * Server-side only — do not import from client components.
  */
 
 import type { RawBritishCurriculumProfile } from "@/types/qualification-raw-profile";
 import type {
+  BritishSubjectSegmentKey,
   NormalizedBritishCurriculumProfile,
   NormalizedBritishSubjectRecord,
 } from "@/types/normalized-british-profile";
@@ -33,11 +34,14 @@ const BRITISH_GRADE_SCALE: ReadonlyMap<string, number> = new Map([
 ]);
 
 /**
- * Normalize a British grade label to its numeric value.
+ * Normalize a British grade label to its numeric value and normalized key.
  * Trims whitespace and normalizes case before lookup.
  * Throws on unsupported grade labels.
  */
-function normalizeGrade(grade: string, subjectIndex: number): number {
+function normalizeGrade(grade: string, subjectIndex: number): {
+  normalizedGradeValue: number;
+  gradeNormalizedKey: string;
+} {
   const normalized = grade.trim().toUpperCase();
 
   const value = BRITISH_GRADE_SCALE.get(normalized);
@@ -48,7 +52,47 @@ function normalizeGrade(grade: string, subjectIndex: number): number {
     );
   }
 
-  return value;
+  return {
+    normalizedGradeValue: value,
+    gradeNormalizedKey: normalized,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Level handling
+// ---------------------------------------------------------------------------
+
+interface LevelResult {
+  subjectLevelKey: string;
+  segmentKey: BritishSubjectSegmentKey;
+}
+
+const KNOWN_LEVEL_MAP: ReadonlyMap<string, LevelResult> = new Map([
+  ["a level", { subjectLevelKey: "a_level", segmentKey: "a_level" }],
+  ["as level", { subjectLevelKey: "as_level", segmentKey: "as_level" }],
+  ["o level", { subjectLevelKey: "o_level", segmentKey: "o_level" }],
+  ["igcse", { subjectLevelKey: "igcse", segmentKey: "o_level" }],
+  ["gcse", { subjectLevelKey: "gcse", segmentKey: "o_level" }],
+]);
+
+/**
+ * Normalize a submitted subject level into subjectLevelKey and segmentKey.
+ * Recognized labels are mapped explicitly. Unknown labels get segmentKey "other"
+ * and a sanitized subjectLevelKey (trimmed, lowercased, spaces to underscores).
+ */
+function normalizeLevel(subjectLevel: string): LevelResult {
+  const trimmed = subjectLevel.trim();
+  const lookup = trimmed.toLowerCase();
+
+  const known = KNOWN_LEVEL_MAP.get(lookup);
+  if (known) {
+    return known;
+  }
+
+  return {
+    subjectLevelKey: lookup.replace(/\s+/g, "_"),
+    segmentKey: "other",
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -57,20 +101,29 @@ function normalizeGrade(grade: string, subjectIndex: number): number {
 
 /**
  * Normalize a validated raw British curriculum profile.
- * Adds numeric grade values per subject. Preserves all raw data.
+ * Adds numeric grade values, normalized grade keys, subject level keys,
+ * and segment keys per subject. Preserves all raw data.
  * Pure sync function — no DB access.
  */
 export function normalizeBritishSubjectBasedRawProfile(
   rawProfile: RawBritishCurriculumProfile
 ): NormalizedBritishCurriculumProfile {
   const subjects: NormalizedBritishSubjectRecord[] = rawProfile.subjects.map(
-    (s, i) => ({
-      subjectName: s.subjectName,
-      subjectLevel: s.subjectLevel,
-      grade: s.grade,
-      normalizedGradeValue: normalizeGrade(s.grade, i),
-      notesAr: s.notesAr,
-    })
+    (s, i) => {
+      const gradeResult = normalizeGrade(s.grade, i);
+      const levelResult = normalizeLevel(s.subjectLevel);
+
+      return {
+        subjectName: s.subjectName,
+        subjectLevel: s.subjectLevel,
+        segmentKey: levelResult.segmentKey,
+        subjectLevelKey: levelResult.subjectLevelKey,
+        grade: s.grade,
+        gradeNormalizedKey: gradeResult.gradeNormalizedKey,
+        normalizedGradeValue: gradeResult.normalizedGradeValue,
+        notesAr: s.notesAr,
+      };
+    }
   );
 
   return {
