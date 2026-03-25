@@ -153,3 +153,51 @@
 **Title:** Phase closeout requires smoke validation against live local Supabase
 **Status:** Final
 **Decision:** A phase is not considered operationally closed until a smoke test passes against the live local Supabase stack via `supabase db reset` and real authenticated queries.
+
+---
+
+## Decision 020
+
+**Title:** RLS added for organization_offering_settings
+**Status:** Final
+**Decision:** Phase 1 debt fix. `organization_offering_settings` has RLS enabled with a SELECT policy using the existing `is_active_member_of` SECURITY DEFINER helper. Enforces tenant isolation at the database level for the overlay table.
+
+---
+
+## Decision 021
+
+**Title:** Duplicated request-access path removed
+**Status:** Final
+**Decision:** Phase 1 cleanup. `src/lib/permissions/request-access.ts` was removed because the canonical access path goes through `actor-access.ts`. The duplicated helper added confusion without adding value.
+
+---
+
+## Decision 022
+
+**Title:** Catalog Core uses read-only service-layer composition
+**Status:** Final
+**Decision:** Catalog services compose existing workspace access helpers and the RLS-aware Supabase client. Overlay logic lives in the effective catalog browse service only. Selection and target context services derive from the browse result without reimplementing overlay/ownership logic.
+
+---
+
+## Decision 023
+
+**Title:** Direct evaluation preparation is split into sequential phases
+**Status:** Final
+**Decision:** Direct evaluation is built as: (1) target context resolution, (2) qualification definition/profile capture, (3) normalization, (4) rule context resolution, (5) evaluator execution (not yet implemented). Each phase is a separate composable service.
+
+---
+
+## Decision 024
+
+**Title:** British path is a specialized subject-based preparation path
+**Status:** Final
+**Decision:** British qualification is handled separately from simple-form families. It has its own assembler, normalizer, and preparation service. British normalization preserves subject records, submitted levels, and adds normalized grade values, segment keys, and level keys.
+
+---
+
+## Decision 025
+
+**Title:** Count-based rules and evaluator logic are not implemented yet
+**Status:** Final
+**Decision:** The current approved state includes preparation and rule context resolution only. No rule group/rule loading, no rule execution, no result calculation, no count-based subject rules exist yet. These are the next implementation phases.
