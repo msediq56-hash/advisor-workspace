@@ -97,43 +97,51 @@ function buildSelectionOptions(
   // We filter progressively through the chain
 
   // Determine reachable universities by filter prefix
-  let filteredUniversities = [...allUniversities];
+  // outputUniversities = country + universityType only (for the returned list)
+  // downstreamUniversities = country + universityType + universityId (for downstream derivation)
+  let outputUniversities = [...allUniversities];
 
   if (filters.countryId) {
-    filteredUniversities = filteredUniversities.filter(
+    outputUniversities = outputUniversities.filter(
       (u) => u.countryId === filters.countryId
     );
   }
   if (filters.universityTypeId) {
-    filteredUniversities = filteredUniversities.filter(
+    outputUniversities = outputUniversities.filter(
       (u) => u.universityTypeId === filters.universityTypeId
     );
   }
+
+  let downstreamUniversities = outputUniversities;
   if (filters.universityId) {
-    filteredUniversities = filteredUniversities.filter(
+    downstreamUniversities = downstreamUniversities.filter(
       (u) => u.id === filters.universityId
     );
   }
 
-  const filteredUniversityIds = new Set(filteredUniversities.map((u) => u.id));
+  const filteredUniversityIds = new Set(downstreamUniversities.map((u) => u.id));
 
   // Programs reachable under filtered universities
-  let filteredPrograms = allPrograms.filter((p) =>
+  // outputPrograms = country + universityType + university + degree (for the returned list)
+  // downstreamPrograms = also filtered by programId (for downstream offering derivation)
+  let outputPrograms = allPrograms.filter((p) =>
     filteredUniversityIds.has(p.universityId)
   );
 
   if (filters.degreeId) {
-    filteredPrograms = filteredPrograms.filter(
+    outputPrograms = outputPrograms.filter(
       (p) => p.degreeId === filters.degreeId
     );
   }
+
+  let downstreamPrograms = outputPrograms;
   if (filters.programId) {
-    filteredPrograms = filteredPrograms.filter(
+    downstreamPrograms = downstreamPrograms.filter(
       (p) => p.id === filters.programId
     );
   }
 
-  const filteredProgramIds = new Set(filteredPrograms.map((p) => p.id));
+  const filteredProgramIds = new Set(downstreamPrograms.map((p) => p.id));
 
   // Offerings reachable under filtered programs
   const filteredOfferings = allOfferings.filter((o) =>
@@ -196,8 +204,8 @@ function buildSelectionOptions(
     .filter((ut) => universityTypesFromEffective.has(ut.id))
     .sort((a, b) => a.nameAr.localeCompare(b.nameAr));
 
-  // Universities: only those in filtered scope that have offerings
-  const universities: CatalogSelectionUniversityOption[] = filteredUniversities
+  // Universities: options reachable after country + universityType only
+  const universities: CatalogSelectionUniversityOption[] = outputUniversities
     .filter((u) => uniIdsWithOfferings.has(u.id))
     .map((u) => ({
       id: u.id,
@@ -213,7 +221,8 @@ function buildSelectionOptions(
       return a.nameAr.localeCompare(b.nameAr);
     });
 
-  const programs: CatalogSelectionProgramOption[] = filteredPrograms
+  // Programs: options reachable after country + universityType + university + degree only
+  const programs: CatalogSelectionProgramOption[] = outputPrograms
     .filter((p) => programIdsWithOfferings.has(p.id))
     .map((p) => ({
       id: p.id,
@@ -231,27 +240,30 @@ function buildSelectionOptions(
     return true;
   });
 
-  const offerings: CatalogSelectionOfferingOption[] = filteredOfferings
-    .map((o) => ({
-      id: o.id,
-      intakeLabelAr: o.intakeLabelAr,
-      intakeTermKey: o.intakeTermKey,
-      intakeYear: o.intakeYear,
-      campusNameAr: o.campusNameAr,
-      studyModeKey: o.studyModeKey,
-      durationMonths: o.durationMonths,
-      teachingLanguageKey: o.teachingLanguageKey,
-      annualTuitionAmount: o.annualTuitionAmount,
-      currencyCode: o.currencyCode,
-      applicationFeeAmount: o.applicationFeeAmount,
-      extraFeeNoteAr: o.extraFeeNoteAr,
-      scholarshipNoteAr: o.scholarshipNoteAr,
-    }))
-    .sort((a, b) => {
-      if ((a.intakeYear ?? 0) !== (b.intakeYear ?? 0))
-        return (a.intakeYear ?? 0) - (b.intakeYear ?? 0);
-      return a.intakeLabelAr.localeCompare(b.intakeLabelAr);
-    });
+  // Sort on richer internal data (has programId) before mapping to public shape
+  const sortedOfferings = [...filteredOfferings].sort((a, b) => {
+    if (a.programId < b.programId) return -1;
+    if (a.programId > b.programId) return 1;
+    if ((a.intakeYear ?? 0) !== (b.intakeYear ?? 0))
+      return (a.intakeYear ?? 0) - (b.intakeYear ?? 0);
+    return a.intakeLabelAr.localeCompare(b.intakeLabelAr);
+  });
+
+  const offerings: CatalogSelectionOfferingOption[] = sortedOfferings.map((o) => ({
+    id: o.id,
+    intakeLabelAr: o.intakeLabelAr,
+    intakeTermKey: o.intakeTermKey,
+    intakeYear: o.intakeYear,
+    campusNameAr: o.campusNameAr,
+    studyModeKey: o.studyModeKey,
+    durationMonths: o.durationMonths,
+    teachingLanguageKey: o.teachingLanguageKey,
+    annualTuitionAmount: o.annualTuitionAmount,
+    currencyCode: o.currencyCode,
+    applicationFeeAmount: o.applicationFeeAmount,
+    extraFeeNoteAr: o.extraFeeNoteAr,
+    scholarshipNoteAr: o.scholarshipNoteAr,
+  }));
 
   return {
     workspace,
