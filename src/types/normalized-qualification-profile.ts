@@ -1,8 +1,8 @@
 /**
  * Normalized qualification profile types for Direct Evaluation.
  *
- * Baseline normalization for non-British families only.
- * British specialized normalization belongs to a later phase.
+ * Includes baseline normalization for simple-form families and
+ * British specialized normalization.
  *
  * No evaluator/result types. No persistence types. No UI-only types.
  */
@@ -10,6 +10,7 @@
 import type { CurrentWorkspaceCapabilities } from "./workspace-capabilities";
 import type { EffectiveTargetOfferingContext } from "./catalog-target-context";
 import type { ActiveQualificationDefinitionRead } from "./qualification-definition-read";
+import type { NormalizedBritishCurriculumProfile } from "./normalized-british-profile";
 
 // ---------------------------------------------------------------------------
 // Supported normalized families (baseline — no British)
@@ -60,7 +61,8 @@ export interface NormalizedIBProfile {
 export type NormalizedQualificationProfile =
   | NormalizedArabicSecondaryProfile
   | NormalizedAmericanHighSchoolProfile
-  | NormalizedIBProfile;
+  | NormalizedIBProfile
+  | NormalizedBritishCurriculumProfile;
 
 // ---------------------------------------------------------------------------
 // Bundled normalized output

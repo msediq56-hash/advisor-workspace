@@ -17,6 +17,8 @@ import type { QualificationAnswerPayload } from "@/types/qualification-answer-pa
 import type { CurrentWorkspaceCapabilities } from "@/types/workspace-capabilities";
 import type { EffectiveTargetOfferingContext } from "@/types/catalog-target-context";
 import type { ActiveQualificationDefinitionRead } from "@/types/qualification-definition-read";
+import type { RawQualificationProfile } from "@/types/qualification-raw-profile";
+import type { NormalizedQualificationProfile } from "@/types/normalized-qualification-profile";
 import type { ResolvedDirectEvaluationRuleSet } from "@/types/direct-evaluation-rule-context";
 import type {
   ResolvedDirectEvaluationRuleContext,
@@ -33,8 +35,8 @@ export interface PreparedInputForRuleResolution {
   workspace: CurrentWorkspaceCapabilities;
   target: EffectiveTargetOfferingContext;
   qualificationDefinition: ActiveQualificationDefinitionRead;
-  rawProfile: unknown;
-  normalizedProfile: unknown;
+  rawProfile: RawQualificationProfile;
+  normalizedProfile: NormalizedQualificationProfile;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,8 +95,8 @@ async function resolveRuleContextFromPreparedInput(
     workspace: prepared.workspace,
     target: prepared.target,
     qualificationDefinition: prepared.qualificationDefinition,
-    rawProfile: prepared.rawProfile as ResolvedDirectEvaluationRuleContext["rawProfile"],
-    normalizedProfile: prepared.normalizedProfile as ResolvedDirectEvaluationRuleContext["normalizedProfile"],
+    rawProfile: prepared.rawProfile,
+    normalizedProfile: prepared.normalizedProfile,
     status: "no_published_rules",
     resolvedRuleSet: null,
     ruleGroups: [],
@@ -164,8 +166,8 @@ async function resolveRuleContextFromPreparedInput(
       workspace: prepared.workspace,
       target: prepared.target,
       qualificationDefinition: prepared.qualificationDefinition,
-      rawProfile: prepared.rawProfile as ResolvedDirectEvaluationRuleContext["rawProfile"],
-      normalizedProfile: prepared.normalizedProfile as ResolvedDirectEvaluationRuleContext["normalizedProfile"],
+      rawProfile: prepared.rawProfile,
+      normalizedProfile: prepared.normalizedProfile,
       status: "supported",
       resolvedRuleSet,
       ruleGroups: [],
@@ -244,8 +246,8 @@ async function resolveRuleContextFromPreparedInput(
     workspace: prepared.workspace,
     target: prepared.target,
     qualificationDefinition: prepared.qualificationDefinition,
-    rawProfile: prepared.rawProfile as ResolvedDirectEvaluationRuleContext["rawProfile"],
-    normalizedProfile: prepared.normalizedProfile as ResolvedDirectEvaluationRuleContext["normalizedProfile"],
+    rawProfile: prepared.rawProfile,
+    normalizedProfile: prepared.normalizedProfile,
     status: "supported",
     resolvedRuleSet,
     ruleGroups,
