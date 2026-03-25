@@ -2,9 +2,10 @@
  * Server-side published Direct Evaluation rule context resolver.
  *
  * Resolves whether a published rule context exists for a selected
- * target offering + qualification type. Does not evaluate or execute rules.
+ * target offering + qualification type. When supported, loads ordered
+ * published rule groups and their ordered active rules.
  *
- * Composes existing simple-form preparation and reads rule registry tables.
+ * Does not evaluate or execute rules.
  *
  * Server-side only — do not import from client components.
  */
@@ -13,19 +14,20 @@ import { createClient } from "@/lib/supabase/server";
 import { prepareSimpleFormDirectEvaluation } from "@/modules/qualification/prepare-simple-form-direct-evaluation";
 import type { MembershipRole } from "@/types/enums";
 import type { QualificationAnswerPayload } from "@/types/qualification-answer-payload";
+import type { ResolvedDirectEvaluationRuleSet } from "@/types/direct-evaluation-rule-context";
 import type {
-  DirectEvaluationRuleContext,
-  ResolvedDirectEvaluationRuleSet,
-} from "@/types/direct-evaluation-rule-context";
+  ResolvedDirectEvaluationRuleContext,
+  ResolvedDirectEvaluationRuleGroup,
+  ResolvedDirectEvaluationRule,
+} from "@/types/direct-evaluation-resolved-rule-context";
 
 /**
  * Resolve the Direct Evaluation rule context for a selected offering + qualification.
  *
- * Returns status "supported" with the published rule set reference,
- * or status "no_published_rules" with resolvedRuleSet = null.
+ * Returns status "supported" with the published rule set reference and loaded
+ * ordered rule groups/rules, or status "no_published_rules" with empty groups.
  *
- * Throws on preparation failure, query failure, or integrity errors
- * (e.g. multiple published versions for the same rule set context).
+ * Throws on preparation failure, query failure, or integrity errors.
  */
 export async function resolveDirectEvaluationRuleContext(
   params: {
@@ -35,7 +37,7 @@ export async function resolveDirectEvaluationRuleContext(
     organizationId?: string | null;
     allowedRoles?: readonly MembershipRole[];
   }
-): Promise<DirectEvaluationRuleContext> {
+): Promise<ResolvedDirectEvaluationRuleContext> {
   // 1. Prepare the simple-form direct evaluation input
   const prepared = await prepareSimpleFormDirectEvaluation(params);
 
@@ -70,7 +72,6 @@ export async function resolveDirectEvaluationRuleContext(
   const orgOwned = readableRuleSets.filter((rs) => rs.owner_scope === "organization");
   const platformOwned = readableRuleSets.filter((rs) => rs.owner_scope === "platform");
 
-  // Within the same ownership tier, multiple candidates is an integrity error
   if (orgOwned.length > 1) {
     throw new Error(
       `Data integrity error: found ${orgOwned.length} organization-owned active rule sets ` +
@@ -84,19 +85,21 @@ export async function resolveDirectEvaluationRuleContext(
     );
   }
 
-  // Organization-owned takes precedence over platform-owned
   const activeRuleSets = orgOwned.length > 0 ? orgOwned : platformOwned;
 
+  const noRulesResult: ResolvedDirectEvaluationRuleContext = {
+    workspace: prepared.workspace,
+    target: prepared.target,
+    qualificationDefinition: prepared.qualificationDefinition,
+    rawProfile: prepared.rawProfile,
+    normalizedProfile: prepared.normalizedProfile,
+    status: "no_published_rules",
+    resolvedRuleSet: null,
+    ruleGroups: [],
+  };
+
   if (activeRuleSets.length === 0) {
-    return {
-      workspace: prepared.workspace,
-      target: prepared.target,
-      qualificationDefinition: prepared.qualificationDefinition,
-      rawProfile: prepared.rawProfile,
-      normalizedProfile: prepared.normalizedProfile,
-      status: "no_published_rules",
-      resolvedRuleSet: null,
-    };
+    return noRulesResult;
   }
 
   // 3. Find published versions for the matching rule sets
@@ -115,15 +118,7 @@ export async function resolveDirectEvaluationRuleContext(
   const publishedVersions = versions ?? [];
 
   if (publishedVersions.length === 0) {
-    return {
-      workspace: prepared.workspace,
-      target: prepared.target,
-      qualificationDefinition: prepared.qualificationDefinition,
-      rawProfile: prepared.rawProfile,
-      normalizedProfile: prepared.normalizedProfile,
-      status: "no_published_rules",
-      resolvedRuleSet: null,
-    };
+    return noRulesResult;
   }
 
   if (publishedVersions.length > 1) {
@@ -149,6 +144,100 @@ export async function resolveDirectEvaluationRuleContext(
     qualificationTypeId: ruleSet.qualification_type_id,
   };
 
+  // 4. Load ordered rule groups for the published version
+  const { data: groupRows, error: gError } = await supabase
+    .from("rule_groups")
+    .select("id, group_key, label_ar, evaluation_mode, group_severity, order_index")
+    .eq("rule_set_version_id", version.id)
+    .order("order_index", { ascending: true });
+
+  if (gError) {
+    throw new Error(`Failed to load rule groups: ${gError.message}`);
+  }
+
+  const groups = groupRows ?? [];
+
+  if (groups.length === 0) {
+    return {
+      workspace: prepared.workspace,
+      target: prepared.target,
+      qualificationDefinition: prepared.qualificationDefinition,
+      rawProfile: prepared.rawProfile,
+      normalizedProfile: prepared.normalizedProfile,
+      status: "supported",
+      resolvedRuleSet,
+      ruleGroups: [],
+    };
+  }
+
+  // 5. Load ordered active rules for all groups, joined with rule type key
+  const groupIds = groups.map((g) => g.id);
+
+  const { data: ruleRows, error: rError } = await supabase
+    .from("rules")
+    .select("id, rule_group_id, rule_type_id, config_jsonb, order_index")
+    .in("rule_group_id", groupIds)
+    .eq("is_active", true)
+    .order("order_index", { ascending: true });
+
+  if (rError) {
+    throw new Error(`Failed to load rules: ${rError.message}`);
+  }
+
+  const rules = ruleRows ?? [];
+
+  // Load rule type keys for all referenced rule_type_ids
+  const ruleTypeIds = [...new Set(rules.map((r) => r.rule_type_id))];
+
+  let ruleTypeMap: Map<string, string> = new Map();
+
+  if (ruleTypeIds.length > 0) {
+    const { data: ruleTypeRows, error: rtError } = await supabase
+      .from("rule_types")
+      .select("id, key")
+      .in("id", ruleTypeIds);
+
+    if (rtError) {
+      throw new Error(`Failed to load rule types: ${rtError.message}`);
+    }
+
+    ruleTypeMap = new Map((ruleTypeRows ?? []).map((rt) => [rt.id, rt.key]));
+  }
+
+  // 6. Assemble ordered rule groups with their ordered rules
+  const rulesByGroup = new Map<string, ResolvedDirectEvaluationRule[]>();
+  for (const r of rules) {
+    const ruleTypeKey = ruleTypeMap.get(r.rule_type_id);
+    if (!ruleTypeKey) {
+      throw new Error(
+        `Data integrity error: rule ${r.id} references rule_type_id ${r.rule_type_id} which was not found`
+      );
+    }
+
+    const entry: ResolvedDirectEvaluationRule = {
+      ruleId: r.id,
+      ruleTypeKey,
+      ruleConfig: r.config_jsonb,
+      orderIndex: r.order_index,
+    };
+
+    const existing = rulesByGroup.get(r.rule_group_id);
+    if (existing) {
+      existing.push(entry);
+    } else {
+      rulesByGroup.set(r.rule_group_id, [entry]);
+    }
+  }
+
+  const ruleGroups: ResolvedDirectEvaluationRuleGroup[] = groups.map((g) => ({
+    ruleGroupId: g.id,
+    groupKey: g.group_key,
+    groupSeverity: g.group_severity,
+    groupEvaluationMode: g.evaluation_mode,
+    orderIndex: g.order_index,
+    rules: rulesByGroup.get(g.id) ?? [],
+  }));
+
   return {
     workspace: prepared.workspace,
     target: prepared.target,
@@ -157,5 +246,6 @@ export async function resolveDirectEvaluationRuleContext(
     normalizedProfile: prepared.normalizedProfile,
     status: "supported",
     resolvedRuleSet,
+    ruleGroups,
   };
 }
