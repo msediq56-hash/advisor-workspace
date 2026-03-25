@@ -120,7 +120,7 @@
 
 **Title:** Migration 1 accepted after local runtime validation
 **Status:** Final
-**Decision:** Migration 1 core schema (30 tables, 17 enums, 26 indexes) was validated by applying it against a live Supabase PostgreSQL instance via `supabase db reset`. It is now the accepted baseline schema.
+**Decision:** Migration 1 core schema (30 tables, 17 enums, 23 indexes, 3 partial unique indexes) was validated by applying it against a live Supabase PostgreSQL instance via `supabase db reset`. It is now the accepted baseline schema.
 
 ---
 
@@ -182,9 +182,9 @@
 
 ## Decision 023
 
-**Title:** Direct evaluation preparation is split into sequential phases
+**Title:** Direct evaluation runtime pipeline is split into sequential composable phases
 **Status:** Final
-**Decision:** Direct evaluation is built as: (1) target context resolution, (2) qualification definition/profile capture, (3) normalization, (4) rule context resolution, (5) evaluator execution (not yet implemented). Each phase is a separate composable service.
+**Decision:** Direct evaluation is built as: (1) target context resolution, (2) qualification definition/profile capture, (3) normalization, (4) rule context resolution, (5) evaluation execution, (6) result assembly, (7) explanation rendering. Each phase is a separate composable service. Phases 1–4 are fully implemented. Phases 5–7 are implemented at baseline level (minimum_subject_count only, no persistence, no UI integration). No end-to-end orchestration service exists yet.
 
 ---
 
