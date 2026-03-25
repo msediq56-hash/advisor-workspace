@@ -1,15 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import type { AppSession, SessionUser } from "@/types/auth";
-import type { DbUserProfile } from "@/types/database";
 
 /**
  * Get the current authenticated session from the server-side Supabase client.
- * Returns null if not authenticated or if the user profile is missing/inactive.
+ * Returns null if no authenticated user exists.
  *
- * Does NOT create or sync user_profiles rows — that will be handled
- * by a dedicated auth callback in a later task.
+ * Does NOT load org memberships — use org-context.ts for that.
+ * Does NOT create or sync user_profiles rows.
  */
-export async function getSession(): Promise<AppSession | null> {
+export async function getAppSession(): Promise<AppSession | null> {
   const supabase = await createClient();
 
   const {
@@ -20,22 +19,22 @@ export async function getSession(): Promise<AppSession | null> {
     return null;
   }
 
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("id, full_name, email_normalized, is_active")
-    .eq("id", authUser.id)
-    .single<Pick<DbUserProfile, "id" | "full_name" | "email_normalized" | "is_active">>();
-
-  if (!profile || !profile.is_active) {
-    return null;
-  }
-
   const sessionUser: SessionUser = {
-    id: profile.id,
-    email: profile.email_normalized,
-    fullName: profile.full_name,
-    isActive: profile.is_active,
+    id: authUser.id,
+    email: authUser.email,
   };
 
   return { user: sessionUser };
+}
+
+/**
+ * Get the current authenticated session or throw.
+ * Use in server code paths that require authentication.
+ */
+export async function requireAppSession(): Promise<AppSession> {
+  const session = await getAppSession();
+  if (!session) {
+    throw new Error("Authentication required");
+  }
+  return session;
 }

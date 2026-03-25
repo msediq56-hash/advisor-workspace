@@ -1,15 +1,14 @@
 /**
- * Typed shapes for auth session and organization context.
+ * Typed shapes for auth session, organization membership, and org context resolution.
+ * Reuses enum unions from src/types/enums.ts — do not duplicate them here.
  */
 
-import type { MembershipRole } from "./enums";
+import type { MembershipRole, MembershipStatus, OrganizationStatus } from "./enums";
 
-/** The authenticated user as resolved from Supabase Auth + user_profiles. */
+/** The authenticated user as resolved from Supabase Auth. */
 export interface SessionUser {
   id: string;
   email: string;
-  fullName: string;
-  isActive: boolean;
 }
 
 /** Resolved session — null means not authenticated. */
@@ -17,19 +16,38 @@ export interface AppSession {
   user: SessionUser;
 }
 
-/** A single organization membership for the current user. */
+/** A single organization membership for a user, with org details. */
 export interface UserMembership {
+  membershipId: string;
+  userId: string;
   organizationId: string;
   organizationSlug: string;
   organizationNameAr: string;
-  role: MembershipRole;
+  roleKey: MembershipRole;
+  membershipStatus: MembershipStatus;
+  organizationStatus: OrganizationStatus;
 }
 
-/** Active organization context for a request. */
-export interface OrgContext {
+/** Resolved organization context for a request — only returned when status is 'resolved'. */
+export interface ResolvedOrgContext {
+  userId: string;
+  membershipId: string;
   organizationId: string;
   organizationSlug: string;
   organizationNameAr: string;
-  userId: string;
-  role: MembershipRole;
+  roleKey: MembershipRole;
 }
+
+/** Possible outcomes of org context resolution. */
+export type OrgContextResolutionStatus =
+  | "resolved"
+  | "no_active_memberships"
+  | "multiple_active_memberships_requires_selection"
+  | "organization_not_accessible";
+
+/** Result of org context resolution — discriminated by status. */
+export type OrgContextResolutionResult =
+  | { status: "resolved"; context: ResolvedOrgContext; memberships: UserMembership[] }
+  | { status: "no_active_memberships" }
+  | { status: "multiple_active_memberships_requires_selection"; memberships: UserMembership[] }
+  | { status: "organization_not_accessible"; memberships: UserMembership[] };
