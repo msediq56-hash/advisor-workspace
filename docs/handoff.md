@@ -8,7 +8,7 @@ Advisor Workspace
 
 Migration 1 (core schema) has been implemented and validated against a live Supabase PostgreSQL instance.
 
-The project is past the pre-code foundation phase and into early implementation.
+Minimal Next.js + Supabase application scaffold is in place with typed auth/session and org-context foundations.
 
 ## Authoritative references
 
@@ -40,19 +40,28 @@ The project is past the pre-code foundation phase and into early implementation.
 - Supabase project initialized (`supabase/config.toml`)
 - `src/types/enums.ts` — temporary enum union types aligned with PostgreSQL enums
 - `src/types/database.ts` — minimal DB-facing interfaces for early session/org-context type foundation
+- Application scaffold (Next.js + Supabase):
+  - `package.json`, `tsconfig.json`, `next.config.ts`, `next-env.d.ts`, `.env.example`
+  - `src/app/layout.tsx`, `src/app/page.tsx` — minimal App Router shell (Arabic RTL)
+  - `src/lib/env.ts` — runtime env validation
+  - `src/lib/supabase/server.ts`, `browser.ts`, `admin.ts` — typed Supabase client factories
+  - `src/lib/auth/session.ts` — server-side session resolution
+  - `src/lib/permissions/org-context.ts` — org context resolution
+  - `src/types/auth.ts` — session and org-context type shapes
 
 ## What has NOT started yet
 
 - No Migration 2 (import pipeline tables)
-- No application scaffold (Next.js + Supabase)
+- No catalog service
 - No admin UI
 - No evaluation engine
 - No normalization layer
 - No RLS policies
+- No CRM features
 
 ## Current recommended next step
 
-Minimal Next.js + Supabase application scaffold.
+Backend service layer foundation (catalog read services or RLS policies).
 
 ## Critical constraints to remember
 
@@ -65,7 +74,7 @@ Minimal Next.js + Supabase application scaffold.
 
 ## Last architectural state
 
-Migration 1 core schema is implemented and runtime-validated on Supabase. No application code exists.
+Migration 1 core schema is implemented and runtime-validated on Supabase. Minimal application scaffold with typed auth/session and org-context foundations is in place. No domain services or business UI exist yet.
 
 ## If this project is reopened in a new chat
 
