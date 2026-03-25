@@ -137,3 +137,19 @@
 **Title:** Supabase CLI is the standard local migration workflow
 **Status:** Final
 **Decision:** The project uses Supabase CLI for migration management and local development. Migrations live in `supabase/migrations/`. Local validation uses `supabase db reset`.
+
+---
+
+## Decision 018
+
+**Title:** RLS policies must not self-reference tables recursively
+**Status:** Final
+**Decision:** Membership-based RLS policies must avoid recursive self-reference on `organization_memberships`. When a policy needs to check membership or ownership internally, use narrowly scoped `SECURITY DEFINER` helper functions that bypass RLS for the lookup.
+
+---
+
+## Decision 019
+
+**Title:** Phase closeout requires smoke validation against live local Supabase
+**Status:** Final
+**Decision:** A phase is not considered operationally closed until a smoke test passes against the live local Supabase stack via `supabase db reset` and real authenticated queries.

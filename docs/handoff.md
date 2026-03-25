@@ -6,10 +6,12 @@ Advisor Workspace
 
 ## Current status
 
-Migration 1 (core schema) is accepted and runtime-validated on Supabase.
+**Phase 1 is operationally closed.**
+
+Migration 1 (core schema) and 5 RLS migrations (00002–00006) are runtime-validated on Supabase.
 Minimal Next.js + Supabase scaffold is in place.
-Phase 1 Foundation (identity, organization, tenant-scoping, role-capability) is implemented.
-RLS baseline migrations for identity, organization, branding, and owner-read extensions are runtime-validated.
+Phase 1 Foundation (identity, organization, tenant-scoping, role-capability, ownership, workspace access) is implemented.
+Phase 1 smoke test passed (25/25 scenarios) against the live local Supabase stack.
 
 ## Authoritative references
 
@@ -48,7 +50,10 @@ RLS baseline migrations for identity, organization, branding, and owner-read ext
   - Owners can read all memberships in their active organization
 - Migration 5: user profiles owner-read RLS (`supabase/migrations/00005_user_profiles_owner_read_rls.sql`)
   - Owners can read profiles of members in their active organization
+- Migration 6: recursive RLS fix (`supabase/migrations/00006_fix_recursive_identity_rls.sql`)
+  - Two SECURITY DEFINER helpers (`is_active_member_of`, `is_owner_of`) replace recursive policy subqueries
 - Supabase project initialized (`supabase/config.toml`)
+- Phase 1 smoke test (`scripts/smoke/phase1-foundation-smoke.ts`) — 25/25 pass
 
 ### Application scaffold
 
@@ -136,7 +141,7 @@ First Catalog Core slice — read-only catalog service foundation for countries,
 
 ## Last architectural state
 
-Migration 1 core schema and 4 RLS migrations are runtime-validated on Supabase. Minimal application scaffold with complete Phase 1 Foundation (auth, actor, org context, role-capability, ownership, workspace access) is in place. No domain services or business UI exist yet.
+Migration 1 core schema and 5 RLS migrations (00002–00006) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Minimal application scaffold with complete Phase 1 Foundation (auth, actor, org context, role-capability, ownership, workspace access) is in place. Phase 1 is operationally closed. No domain services or business UI exist yet.
 
 ## If this project is reopened in a new chat
 
