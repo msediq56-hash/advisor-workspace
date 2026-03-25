@@ -45,9 +45,11 @@ export async function resolveDirectEvaluationRuleContext(
   // 2. Find active rule_sets targeting this offering + qualification type
   const supabase = await createClient();
 
+  const orgId = prepared.workspace.workspace.orgContext.organizationId;
+
   const { data: ruleSets, error: rsError } = await supabase
     .from("rule_sets")
-    .select("id, target_scope, qualification_type_id")
+    .select("id, target_scope, qualification_type_id, owner_scope, owner_organization_id")
     .eq("target_scope", "offering")
     .eq("target_program_offering_id", offeringId)
     .eq("qualification_type_id", qualificationTypeId)
@@ -57,7 +59,33 @@ export async function resolveDirectEvaluationRuleContext(
     throw new Error(`Failed to load rule sets: ${rsError.message}`);
   }
 
-  const activeRuleSets = ruleSets ?? [];
+  // Filter by readable ownership: platform-owned or owned by current org
+  const readableRuleSets = (ruleSets ?? []).filter(
+    (rs) =>
+      (rs.owner_scope === "platform" && rs.owner_organization_id === null) ||
+      (rs.owner_scope === "organization" && rs.owner_organization_id === orgId)
+  );
+
+  // Prefer organization-owned over platform-owned
+  const orgOwned = readableRuleSets.filter((rs) => rs.owner_scope === "organization");
+  const platformOwned = readableRuleSets.filter((rs) => rs.owner_scope === "platform");
+
+  // Within the same ownership tier, multiple candidates is an integrity error
+  if (orgOwned.length > 1) {
+    throw new Error(
+      `Data integrity error: found ${orgOwned.length} organization-owned active rule sets ` +
+      `for offering ${offeringId} + qualification type ${qualificationTypeId}. Expected at most one.`
+    );
+  }
+  if (platformOwned.length > 1) {
+    throw new Error(
+      `Data integrity error: found ${platformOwned.length} platform-owned active rule sets ` +
+      `for offering ${offeringId} + qualification type ${qualificationTypeId}. Expected at most one.`
+    );
+  }
+
+  // Organization-owned takes precedence over platform-owned
+  const activeRuleSets = orgOwned.length > 0 ? orgOwned : platformOwned;
 
   if (activeRuleSets.length === 0) {
     return {
