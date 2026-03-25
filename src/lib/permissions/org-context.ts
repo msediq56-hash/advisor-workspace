@@ -1,4 +1,15 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+/**
+ * Server-side organization context resolution.
+ *
+ * Current-session scoped: reads rely on RLS policies
+ * (organization_memberships_select_own, organizations_select_active_member),
+ * so only the authenticated user's own membership rows are visible.
+ *
+ * This is NOT a generic arbitrary-user resolver. It only resolves
+ * org context for the current authenticated user.
+ */
+
+import { createClient } from "@/lib/supabase/server";
 import type {
   UserMembership,
   ResolvedOrgContext,
@@ -7,21 +18,26 @@ import type {
 import type { MembershipRole, MembershipStatus, OrganizationStatus } from "@/types/enums";
 
 /**
- * Server-side organization context resolution.
- *
- * Uses the service-role admin client because RLS policies are not
- * implemented yet. Once RLS is in place, this should be reviewed
- * to determine whether the admin client is still appropriate here.
- */
-
-/**
  * Fetch all active memberships for a user where both the membership
  * and the organization are active.
+ *
+ * Returns an empty array if:
+ * - no authenticated session exists
+ * - userId does not match the current authenticated user
  */
 export async function listActiveMembershipsForUser(
   userId: string
 ): Promise<UserMembership[]> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
+
+  // Verify current authenticated user
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser || authUser.id !== userId) {
+    return [];
+  }
 
   const { data, error } = await supabase
     .from("organization_memberships")
@@ -35,8 +51,9 @@ export async function listActiveMembershipsForUser(
     return [];
   }
 
-  // Filter to only organizations that are active (join filter via !inner
-  // handles the join, but we still confirm org status in mapping)
+  // RLS already limits rows to the current user's memberships.
+  // The !inner join + organizations RLS ensures only accessible orgs are returned.
+  // We still confirm org status in mapping as a defense-in-depth check.
   return data
     .map((row) => {
       const org = row.organizations as unknown as {
@@ -60,9 +77,10 @@ export async function listActiveMembershipsForUser(
 }
 
 /**
- * Resolve org context for a user.
+ * Resolve org context for the current authenticated user.
  *
  * Resolution rules:
+ * - If no authenticated user or userId mismatch: no_active_memberships
  * - If no active memberships exist: no_active_memberships
  * - If organizationId is provided: validate and resolve or return organization_not_accessible
  * - If organizationId is omitted and exactly one active membership: auto-resolve
@@ -73,6 +91,17 @@ export async function resolveOrgContext(params: {
   organizationId?: string | null;
 }): Promise<OrgContextResolutionResult> {
   const { userId, organizationId } = params;
+
+  // Verify current authenticated user before attempting resolution
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser || authUser.id !== userId) {
+    return { status: "organization_not_accessible" as const, memberships: [] };
+  }
+
   const memberships = await listActiveMembershipsForUser(userId);
 
   if (memberships.length === 0) {

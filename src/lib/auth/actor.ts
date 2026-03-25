@@ -1,26 +1,39 @@
 /**
  * Server-side active actor profile resolution.
  *
- * Resolves an authenticated user into an active application actor
+ * Resolves the current authenticated user into an active application actor
  * using only the user_profiles table.
  *
- * Uses the service-role admin client because RLS policies are not
- * implemented yet. Review when RLS is added.
+ * Current-session scoped: reads rely on RLS (user_profiles_select_own policy),
+ * so only the authenticated user's own profile row is visible.
  */
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { getAppSession, requireAppSession } from "@/lib/auth/session";
 import type { ActorProfile, AppActor } from "@/types/auth";
 import type { DbUserProfile } from "@/types/database";
 
 /**
  * Look up the active actor profile for a user id.
- * Returns null if no profile exists or if the profile is not active.
+ * Returns null if:
+ * - no authenticated session exists
+ * - userId does not match the current authenticated user
+ * - no profile row exists
+ * - profile is inactive
  */
 export async function getActiveActorProfileByUserId(
   userId: string
 ): Promise<ActorProfile | null> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
+
+  // Verify current authenticated user
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser || authUser.id !== userId) {
+    return null;
+  }
 
   const { data: profile } = await supabase
     .from("user_profiles")
