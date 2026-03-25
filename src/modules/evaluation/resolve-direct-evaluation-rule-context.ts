@@ -14,6 +14,9 @@ import { createClient } from "@/lib/supabase/server";
 import { prepareSimpleFormDirectEvaluation } from "@/modules/qualification/prepare-simple-form-direct-evaluation";
 import type { MembershipRole } from "@/types/enums";
 import type { QualificationAnswerPayload } from "@/types/qualification-answer-payload";
+import type { CurrentWorkspaceCapabilities } from "@/types/workspace-capabilities";
+import type { EffectiveTargetOfferingContext } from "@/types/catalog-target-context";
+import type { ActiveQualificationDefinitionRead } from "@/types/qualification-definition-read";
 import type { ResolvedDirectEvaluationRuleSet } from "@/types/direct-evaluation-rule-context";
 import type {
   ResolvedDirectEvaluationRuleContext,
@@ -21,30 +24,29 @@ import type {
   ResolvedDirectEvaluationRule,
 } from "@/types/direct-evaluation-resolved-rule-context";
 
-/**
- * Resolve the Direct Evaluation rule context for a selected offering + qualification.
- *
- * Returns status "supported" with the published rule set reference and loaded
- * ordered rule groups/rules, or status "no_published_rules" with empty groups.
- *
- * Throws on preparation failure, query failure, or integrity errors.
- */
-export async function resolveDirectEvaluationRuleContext(
-  params: {
-    offeringId: string;
-    qualificationTypeKey: string;
-    answers: QualificationAnswerPayload;
-    organizationId?: string | null;
-    allowedRoles?: readonly MembershipRole[];
-  }
-): Promise<ResolvedDirectEvaluationRuleContext> {
-  // 1. Prepare the simple-form direct evaluation input
-  const prepared = await prepareSimpleFormDirectEvaluation(params);
+// ---------------------------------------------------------------------------
+// Internal: prepared input shape accepted by the rule resolution core
+// ---------------------------------------------------------------------------
 
+/** Minimal prepared input needed by the rule resolution core. */
+export interface PreparedInputForRuleResolution {
+  workspace: CurrentWorkspaceCapabilities;
+  target: EffectiveTargetOfferingContext;
+  qualificationDefinition: ActiveQualificationDefinitionRead;
+  rawProfile: unknown;
+  normalizedProfile: unknown;
+}
+
+// ---------------------------------------------------------------------------
+// Internal: rule resolution core (shared by all qualification paths)
+// ---------------------------------------------------------------------------
+
+async function resolveRuleContextFromPreparedInput(
+  prepared: PreparedInputForRuleResolution
+): Promise<ResolvedDirectEvaluationRuleContext> {
   const offeringId = prepared.target.offering.id;
   const qualificationTypeId = prepared.qualificationDefinition.qualificationType.id;
 
-  // 2. Find active rule_sets targeting this offering + qualification type
   const supabase = await createClient();
 
   const orgId = prepared.workspace.workspace.orgContext.organizationId;
@@ -91,8 +93,8 @@ export async function resolveDirectEvaluationRuleContext(
     workspace: prepared.workspace,
     target: prepared.target,
     qualificationDefinition: prepared.qualificationDefinition,
-    rawProfile: prepared.rawProfile,
-    normalizedProfile: prepared.normalizedProfile,
+    rawProfile: prepared.rawProfile as ResolvedDirectEvaluationRuleContext["rawProfile"],
+    normalizedProfile: prepared.normalizedProfile as ResolvedDirectEvaluationRuleContext["normalizedProfile"],
     status: "no_published_rules",
     resolvedRuleSet: null,
     ruleGroups: [],
@@ -102,7 +104,7 @@ export async function resolveDirectEvaluationRuleContext(
     return noRulesResult;
   }
 
-  // 3. Find published versions for the matching rule sets
+  // Find published versions for the matching rule sets
   const ruleSetIds = activeRuleSets.map((rs) => rs.id);
 
   const { data: versions, error: vError } = await supabase
@@ -144,7 +146,7 @@ export async function resolveDirectEvaluationRuleContext(
     qualificationTypeId: ruleSet.qualification_type_id,
   };
 
-  // 4. Load ordered rule groups for the published version
+  // Load ordered rule groups for the published version
   const { data: groupRows, error: gError } = await supabase
     .from("rule_groups")
     .select("id, group_key, label_ar, evaluation_mode, group_severity, order_index")
@@ -162,15 +164,15 @@ export async function resolveDirectEvaluationRuleContext(
       workspace: prepared.workspace,
       target: prepared.target,
       qualificationDefinition: prepared.qualificationDefinition,
-      rawProfile: prepared.rawProfile,
-      normalizedProfile: prepared.normalizedProfile,
+      rawProfile: prepared.rawProfile as ResolvedDirectEvaluationRuleContext["rawProfile"],
+      normalizedProfile: prepared.normalizedProfile as ResolvedDirectEvaluationRuleContext["normalizedProfile"],
       status: "supported",
       resolvedRuleSet,
       ruleGroups: [],
     };
   }
 
-  // 5. Load ordered active rules for all groups, joined with rule type key
+  // Load ordered active rules for all groups, joined with rule type key
   const groupIds = groups.map((g) => g.id);
 
   const { data: ruleRows, error: rError } = await supabase
@@ -204,7 +206,7 @@ export async function resolveDirectEvaluationRuleContext(
     ruleTypeMap = new Map((ruleTypeRows ?? []).map((rt) => [rt.id, rt.key]));
   }
 
-  // 6. Assemble ordered rule groups with their ordered rules
+  // Assemble ordered rule groups with their ordered rules
   const rulesByGroup = new Map<string, ResolvedDirectEvaluationRule[]>();
   for (const r of rules) {
     const ruleTypeKey = ruleTypeMap.get(r.rule_type_id);
@@ -242,10 +244,50 @@ export async function resolveDirectEvaluationRuleContext(
     workspace: prepared.workspace,
     target: prepared.target,
     qualificationDefinition: prepared.qualificationDefinition,
-    rawProfile: prepared.rawProfile,
-    normalizedProfile: prepared.normalizedProfile,
+    rawProfile: prepared.rawProfile as ResolvedDirectEvaluationRuleContext["rawProfile"],
+    normalizedProfile: prepared.normalizedProfile as ResolvedDirectEvaluationRuleContext["normalizedProfile"],
     status: "supported",
     resolvedRuleSet,
     ruleGroups,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Public exports
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the Direct Evaluation rule context for a selected offering + qualification
+ * using simple-form preparation.
+ *
+ * Returns status "supported" with the published rule set reference and loaded
+ * ordered rule groups/rules, or status "no_published_rules" with empty groups.
+ *
+ * Throws on preparation failure, query failure, or integrity errors.
+ */
+export async function resolveDirectEvaluationRuleContext(
+  params: {
+    offeringId: string;
+    qualificationTypeKey: string;
+    answers: QualificationAnswerPayload;
+    organizationId?: string | null;
+    allowedRoles?: readonly MembershipRole[];
+  }
+): Promise<ResolvedDirectEvaluationRuleContext> {
+  const prepared = await prepareSimpleFormDirectEvaluation(params);
+  return resolveRuleContextFromPreparedInput(prepared);
+}
+
+/**
+ * Resolve the Direct Evaluation rule context from an already-prepared input.
+ *
+ * Accepts any prepared input that satisfies the structural contract
+ * (workspace, target, qualificationDefinition, rawProfile, normalizedProfile).
+ * Used by orchestration services that prepare input through a different path
+ * (e.g. British subject-based preparation).
+ */
+export async function resolveDirectEvaluationRuleContextFromPrepared(
+  prepared: PreparedInputForRuleResolution
+): Promise<ResolvedDirectEvaluationRuleContext> {
+  return resolveRuleContextFromPreparedInput(prepared);
 }
