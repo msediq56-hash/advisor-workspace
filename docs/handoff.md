@@ -11,9 +11,13 @@ Phase 1 debt fixes have been applied.
 Phase 2 Catalog Core is implemented (read-only service layer).
 Phase 3 simple-form qualification preparation path is implemented.
 Phase 4 British specialized qualification preparation path is implemented end-to-end through raw assembly, normalization, level handling, and British preparation services.
-Phase 4 Evaluation slice 1 (published direct-evaluation rule context resolver) is implemented.
+Phase 4 British count-based rules support baseline is implemented.
+Phase 4 Evaluation rule context resolver with execution-ready rule group/rule loading is implemented.
+Phase 5 Evaluation execution baseline is implemented (minimum_subject_count rule type only).
+Phase 5 Result assembly baseline is implemented.
+Phase 5 Explanation rendering baseline is implemented (primary reason, next step, advisory notes — all Arabic).
 
-No evaluator logic exists yet. No count-based rules support. No import pipeline. No admin UI. No CRM features.
+No end-to-end orchestration service exists yet. No persistence for evaluation runs/results/traces. No import pipeline. No admin UI. No business UI. No CRM features.
 
 ## Authoritative references
 
@@ -94,14 +98,44 @@ No evaluator logic exists yet. No count-based rules support. No import pipeline.
 - `src/modules/qualification/normalize-british-subject-based-profile.ts` — British normalization with grade scale, level handling, segment keys
 - `src/modules/qualification/prepare-british-direct-evaluation.ts` — end-to-end British preparation
 
-### Phase 4 Evaluation (slice 1)
+### Phase 4 British count-based rules support
 
-- `src/modules/evaluation/resolve-direct-evaluation-rule-context.ts` — published rule context resolver with ownership filtering
+- `src/types/british-subject-count-support.ts` — count params and result types
+- `src/modules/qualification/count-british-subjects.ts` — pure counting helper with segment/level/grade filters
+- `src/types/normalized-british-profile.ts` — updated with `isCountable` per subject record
+- `src/modules/qualification/normalize-british-subject-based-profile.ts` — updated with countability baseline
+
+### Phase 4 Evaluation — rule context resolution and loading
+
+- `src/types/direct-evaluation-resolved-rule-context.ts` — execution-ready resolved context types (ordered groups, ordered rules, ruleTypeKey, ruleConfig)
+- `src/modules/evaluation/resolve-direct-evaluation-rule-context.ts` — published rule context resolver with ownership filtering and rule group/rule loading
+
+### Phase 5 Evaluation execution baseline
+
+- `src/types/direct-evaluation-execution.ts` — execution trace types (rule/group outcomes)
+- `src/modules/evaluation/evaluate-minimum-subject-count-rule.ts` — minimum_subject_count rule executor (composes British count helper)
+- `src/modules/evaluation/execute-direct-evaluation-rule-context.ts` — resolved context executor (minimum_subject_count supported, unsupported types skipped)
+
+### Phase 5 Result assembly baseline
+
+- `src/types/direct-evaluation-result-assembly.ts` — final status, summary counters, assembled result types
+- `src/modules/evaluation/assemble-direct-evaluation-result.ts` — final status derivation from group severities/outcomes
+
+### Phase 5 Explanation rendering baseline
+
+- `src/types/direct-evaluation-explanation.ts` — primary reason rendered type
+- `src/types/direct-evaluation-next-step.ts` — next step rendered type
+- `src/types/direct-evaluation-advisory-notes.ts` — advisory notes rendered type
+- `src/modules/evaluation/render-direct-evaluation-primary-reason.ts` — Arabic primary reason from primaryReasonKey
+- `src/modules/evaluation/render-direct-evaluation-next-step.ts` — Arabic next step from primaryReasonKey
+- `src/modules/evaluation/render-direct-evaluation-advisory-notes.ts` — Arabic advisory notes from group outcomes
 
 ## What has NOT started yet
 
-- No evaluator logic (rule group/rule execution, result calculation)
-- No count-based rules support
+- No end-to-end orchestration service composing the full direct-evaluation runtime
+- No persistence for evaluation runs, results, or traces
+- No broader evaluator support beyond `minimum_subject_count`
+- No broader explanation rendering beyond the current Arabic baseline
 - No import pipeline (tables or code)
 - No admin UI
 - No business UI
@@ -109,7 +143,7 @@ No evaluator logic exists yet. No count-based rules support. No import pipeline.
 
 ## Current recommended next step
 
-British count-based rules support baseline.
+Direct-evaluation orchestration baseline that composes the already implemented runtime slices in-memory only (no persistence, no UI).
 
 ## Critical constraints to remember
 
@@ -122,13 +156,13 @@ British count-based rules support baseline.
 
 ## Last architectural state
 
-Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end and rule context resolution (slice 1). No evaluator or rule execution exists yet.
+Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes). No orchestration service or persistence layer exists yet.
 
 ## If this project is reopened in a new chat
 
 Ask for:
 
-- latest handoff
+- latest handoff (docs were refreshed to match the current approved branch state)
 - latest decisions log
 - whether any code was already implemented
 - whether the schema changed after the last documented state

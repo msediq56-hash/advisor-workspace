@@ -198,6 +198,38 @@
 
 ## Decision 025
 
-**Title:** Count-based rules and evaluator logic are not implemented yet
+**Title:** British count-based support is a separate baseline below evaluator semantics
 **Status:** Final
-**Decision:** The current approved state includes preparation and rule context resolution only. No rule group/rule loading, no rule execution, no result calculation, no count-based subject rules exist yet. These are the next implementation phases.
+**Decision:** Countability (`isCountable`) is added on normalized British subject records based on segment key only. Counting is a pure filter-based helper (segment, level, minimum grade). It does not implement required-subject logic, subject-name classification, deduplication, best-grade selection, or combination policy.
+
+---
+
+## Decision 026
+
+**Title:** Resolved direct-evaluation rule context is execution-ready at baseline level
+**Status:** Final
+**Decision:** The published rule context resolver now returns ordered published rule groups and ordered active rules with `ruleTypeKey` and raw `ruleConfig` transport. Loading is still separate from execution. Ownership filtering (platform + current org) is enforced in application code because rule tables do not have RLS yet.
+
+---
+
+## Decision 027
+
+**Title:** Evaluation execution baseline is intentionally narrow
+**Status:** Final
+**Decision:** The execution baseline supports only `minimum_subject_count` rule type. It consumes already-resolved context without re-querying. Unsupported rule types are skipped in execution traces. The execution layer does not calculate final status — that belongs to result assembly.
+
+---
+
+## Decision 028
+
+**Title:** Result assembly is separate from execution
+**Status:** Final
+**Decision:** Final status is derived from group outcomes and group severities only. Blocking failures → not_eligible, review failures → needs_review, conditional failures → conditional, all satisfied → eligible. Advisory groups do not downgrade final status. Output includes summary counters and preserves group execution traces.
+
+---
+
+## Decision 029
+
+**Title:** Explanation rendering is separate from result assembly and persistence
+**Status:** Final
+**Decision:** Arabic explanation rendering consumes assembled output only and does not re-execute or re-assemble. Three rendering baselines exist: primary reason, next step, advisory notes. Each maps from `primaryReasonKey` or group-level outcomes to fixed Arabic strings. Unknown keys throw rather than silently degrading.
