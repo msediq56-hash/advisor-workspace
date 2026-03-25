@@ -65,3 +65,18 @@ export interface AppActor {
   session: AppSession;
   profile: ActorProfile;
 }
+
+/** Optional actor access — all fields nullable when not authenticated or unresolved. */
+export interface OptionalActorAccess {
+  session: AppSession | null;
+  actor: AppActor | null;
+  orgResolution: OrgContextResolutionResult | null;
+  orgContext: ResolvedOrgContext | null;
+}
+
+/** Required actor access — fully resolved session, actor, and org context. */
+export interface RequiredActorAccess {
+  session: AppSession;
+  actor: AppActor;
+  orgContext: ResolvedOrgContext;
+}
