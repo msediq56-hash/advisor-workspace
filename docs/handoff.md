@@ -10,7 +10,7 @@ Advisor Workspace
 Phase 1 debt fixes have been applied.
 Phase 2 Catalog Core is implemented (read-only service layer).
 Phase 3 simple-form qualification preparation path is implemented.
-Phase 4 British specialized qualification preparation path is implemented through normalization and level handling.
+Phase 4 British specialized qualification preparation path is implemented end-to-end through raw assembly, normalization, level handling, and British preparation services.
 Phase 4 Evaluation slice 1 (published direct-evaluation rule context resolver) is implemented.
 
 No evaluator logic exists yet. No count-based rules support. No import pipeline. No admin UI. No CRM features.
@@ -109,7 +109,7 @@ No evaluator logic exists yet. No count-based rules support. No import pipeline.
 
 ## Current recommended next step
 
-British count-based rules support baseline, or evaluator rule group/rule loading for the direct-evaluation path.
+British count-based rules support baseline.
 
 ## Critical constraints to remember
 
