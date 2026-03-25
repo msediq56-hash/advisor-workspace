@@ -1,8 +1,8 @@
 /**
  * Normalized British curriculum profile types.
  *
- * Preserves subject records with added normalized keys and numeric grade values.
- * No countable flags. No evaluator/result types. No persistence types.
+ * Preserves subject records with normalized keys, numeric grade values,
+ * and countability baseline. No evaluator/result types. No persistence types.
  */
 
 /** British subject segment classification. */
@@ -17,6 +17,7 @@ export interface NormalizedBritishSubjectRecord {
   grade: string;
   gradeNormalizedKey: string;
   normalizedGradeValue: number;
+  isCountable: boolean;
   notesAr: string | null;
 }
 

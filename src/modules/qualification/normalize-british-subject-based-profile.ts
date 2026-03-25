@@ -5,7 +5,8 @@
  * profile with numeric grade values, normalized grade keys, subject
  * level keys, and segment keys per subject.
  *
- * Does not classify subjects by name, count them, or evaluate eligibility.
+ * Does not classify subjects by name or evaluate eligibility.
+ * Marks subjects as countable based on segment key only.
  *
  * Server-side only — do not import from client components.
  */
@@ -96,6 +97,16 @@ function normalizeLevel(subjectLevel: string): LevelResult {
 }
 
 // ---------------------------------------------------------------------------
+// Countability baseline
+// ---------------------------------------------------------------------------
+
+const COUNTABLE_SEGMENTS: ReadonlySet<string> = new Set([
+  "o_level",
+  "as_level",
+  "a_level",
+]);
+
+// ---------------------------------------------------------------------------
 // Public export
 // ---------------------------------------------------------------------------
 
@@ -121,6 +132,7 @@ export function normalizeBritishSubjectBasedRawProfile(
         grade: s.grade,
         gradeNormalizedKey: gradeResult.gradeNormalizedKey,
         normalizedGradeValue: gradeResult.normalizedGradeValue,
+        isCountable: COUNTABLE_SEGMENTS.has(levelResult.segmentKey),
         notesAr: s.notesAr,
       };
     }
