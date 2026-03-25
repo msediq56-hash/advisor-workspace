@@ -51,3 +51,17 @@ export type OrgContextResolutionResult =
   | { status: "no_active_memberships" }
   | { status: "multiple_active_memberships_requires_selection"; memberships: UserMembership[] }
   | { status: "organization_not_accessible"; memberships: UserMembership[] };
+
+/** Active application actor profile resolved from user_profiles. */
+export interface ActorProfile {
+  id: string;
+  fullName: string;
+  emailNormalized: string;
+  isActive: boolean;
+}
+
+/** Authenticated user combined with their active actor profile. */
+export interface AppActor {
+  session: AppSession;
+  profile: ActorProfile;
+}
