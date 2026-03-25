@@ -184,7 +184,7 @@
 
 **Title:** Direct evaluation runtime pipeline is split into sequential composable phases
 **Status:** Final
-**Decision:** Direct evaluation is built as: (1) target context resolution, (2) qualification definition/profile capture, (3) normalization, (4) rule context resolution, (5) evaluation execution, (6) result assembly, (7) explanation rendering. Each phase is a separate composable service. Phases 1–4 are fully implemented. Phases 5–7 are implemented at baseline level (minimum_subject_count only, no persistence, no UI integration). No end-to-end orchestration service exists yet.
+**Decision:** Direct evaluation runtime is being built as sequential composable phases: (1) target context resolution, (2) qualification definition/profile capture, (3) normalization, (4) rule context resolution, (5) evaluation execution, (6) result assembly, (7) explanation rendering. Each phase is a separate composable service. Phases 1–4 are implemented. Service-layer baselines for later evaluation phases are implemented in part, but no end-to-end orchestration, persistence layer, business UI, or full general comparison flow exists yet.
 
 ---
 
