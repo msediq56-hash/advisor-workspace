@@ -156,8 +156,8 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 
 ### Phase 5 Direct-evaluation route handler baseline
 
-- `src/types/direct-evaluation-route.ts` — minimal transport request/response types
-- `src/app/api/direct-evaluation/route.ts` — thin POST route over `invokeDirectEvaluationWorkflow(...)`; minimal request shape validation (family, offeringId, qualificationTypeKey, sourceProfileId); 400 for invalid JSON/invalid shape; narrow local error classification for known access/auth failures (401 unauthenticated, 409 org selection required, 403 access denied, 500 otherwise); no business UI, no server actions, no broader transport framework
+- `src/types/direct-evaluation-route.ts` — transport request/response types, explicit hardened request parser (`parseDirectEvaluationRouteRequestBody`), `RouteValidationError`; validates transport shape: body object, sourceProfileId, evaluation object, supported family, offeringId, qualificationTypeKey, family-specific payload/answers, optional organizationId/allowedRoles
+- `src/app/api/direct-evaluation/route.ts` — thin POST route over `invokeDirectEvaluationWorkflow(...)`; hardened transport-shape parsing via explicit parser; 400 for invalid JSON/invalid transport shape; narrow local error classification for known access/auth failures (401 unauthenticated, 409 org selection required, 403 access denied, 500 otherwise); no business UI, no server actions, no broader transport framework
 
 ## What has NOT started yet
 
@@ -171,7 +171,7 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 
 ## Current recommended next step
 
-Direct-evaluation route request schema hardening baseline (still no business UI).
+Direct-evaluation route response schema hardening baseline (still no business UI).
 
 ## Critical constraints to remember
 
@@ -184,7 +184,7 @@ Direct-evaluation route request schema hardening baseline (still no business UI)
 
 ## Last architectural state
 
-Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes, trace-level rule explanations). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first POST route handler baseline exist. Route surface is still narrow (thin POST, minimal transport validation, narrow local error classification for known access/auth failures). No business UI exists yet.
+Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes, trace-level rule explanations). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first POST route handler baseline exist. Route surface is still narrow (thin POST, hardened transport-shape parsing, narrow local error classification for known access/auth failures). No business UI exists yet.
 
 ## If this project is reopened in a new chat
 
