@@ -17,7 +17,7 @@ Phase 5 Evaluation execution baseline is implemented (minimum_subject_count rule
 Phase 5 Result assembly baseline is implemented.
 Phase 5 Explanation rendering baseline is implemented (primary reason, next step, advisory notes — all Arabic).
 
-British and simple-form direct-evaluation in-memory orchestration baselines are implemented. No generic multi-family orchestration yet. No persistence for evaluation runs/results/traces. No import pipeline. No admin UI. No business UI. No CRM features.
+British, simple-form, and generic multi-family direct-evaluation in-memory orchestration baselines are implemented. No persistence for evaluation runs/results/traces. No import pipeline. No admin UI. No business UI. No CRM features.
 
 ## Authoritative references
 
@@ -132,13 +132,13 @@ British and simple-form direct-evaluation in-memory orchestration baselines are 
 
 ### Phase 5 Orchestration baselines
 
-- `src/types/direct-evaluation-orchestration.ts` — composed runtime result types (British + simple-form)
+- `src/types/direct-evaluation-orchestration.ts` — composed runtime result types and generic input contract (British + simple-form + generic)
 - `src/modules/evaluation/run-british-direct-evaluation.ts` — British direct-evaluation in-memory orchestrator (composes preparation → rule resolution → execution → assembly → rendering)
 - `src/modules/evaluation/run-simple-form-direct-evaluation.ts` — simple-form direct-evaluation in-memory orchestrator (same composition sequence, uses prepared-input resolver path)
+- `src/modules/evaluation/run-direct-evaluation.ts` — generic multi-family router over British and simple-form orchestrators (thin switch on `family` discriminant)
 
 ## What has NOT started yet
 
-- No generic multi-family direct-evaluation orchestration yet
 - No persistence for evaluation runs, results, or traces
 - No broader evaluator support beyond `minimum_subject_count`
 - No broader explanation rendering beyond the current Arabic baseline
@@ -149,7 +149,7 @@ British and simple-form direct-evaluation in-memory orchestration baselines are 
 
 ## Current recommended next step
 
-Generic multi-family direct-evaluation orchestration baseline (in-memory only, no persistence, no UI).
+Persistence baseline for evaluation runs, results, and traces.
 
 ## Critical constraints to remember
 
@@ -162,7 +162,7 @@ Generic multi-family direct-evaluation orchestration baseline (in-memory only, n
 
 ## Last architectural state
 
-Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. No generic multi-family orchestration, persistence layer, or business UI exists yet.
+Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. No persistence layer or business UI exists yet.
 
 ## If this project is reopened in a new chat
 
