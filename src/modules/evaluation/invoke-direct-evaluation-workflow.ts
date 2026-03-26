@@ -32,7 +32,10 @@ export async function invokeDirectEvaluationWorkflow(
   input: InvokeDirectEvaluationWorkflowInput
 ): Promise<InvokeDirectEvaluationWorkflowResult> {
   // 1. Resolve current actor and organization context
-  const access = await requireActorAccess();
+  const access = await requireActorAccess({
+    organizationId: input.evaluation.organizationId,
+    allowedRoles: input.evaluation.allowedRoles,
+  });
 
   // 2. Build the run-and-persist workflow input
   const result = await runAndPersistDirectEvaluation({
