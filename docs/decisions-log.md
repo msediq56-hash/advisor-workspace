@@ -321,3 +321,67 @@
 **Title:** Direct-evaluation route request schema hardening baseline accepted
 **Status:** Final
 **Decision:** The direct-evaluation POST route request shape check is replaced with an explicit hardened transport parser (`parseDirectEvaluationRouteRequestBody`). The parser validates transport shape only: body object, sourceProfileId (string or null), evaluation object, supported family (british_curriculum, arabic_secondary, american_high_school, international_baccalaureate), offeringId string, qualificationTypeKey string, family-specific payload/answers object, optional organizationId (string/null/omitted), optional allowedRoles (valid membership roles only). It does not duplicate deeper business validation. 400 for invalid JSON and 400 for invalid transport shape remain. Existing narrow non-400 route error classification is unchanged. No broader transport framework. No lower-layer contract changes. No business UI, server actions, or evaluation/result/persistence/explanation semantic changes.
+
+---
+
+## Decision 041
+
+**Title:** Direct-evaluation route response schema hardening baseline accepted
+**Status:** Final
+**Decision:** The route success response now uses an explicit serializer (`toDirectEvaluationRouteResponseBody`). The route error responses now use an explicit serializer (`toDirectEvaluationRouteErrorResponseBody`) with a typed `DirectEvaluationRouteErrorCode` union. No broader transport framework. No lower-layer changes.
+
+---
+
+## Decision 042
+
+**Title:** Vitest test framework bootstrap baseline accepted
+**Status:** Final
+**Decision:** Vitest is the accepted test runner for this project. Minimal bootstrap: `vitest.config.ts` with node environment and `@/` path alias, `test` script in package.json. No jest, playwright, cypress, or testing-library packages. No coverage config. No browser/jsdom config.
+
+---
+
+## Decision 043
+
+**Title:** Direct-evaluation route integration test baseline accepted
+**Status:** Final
+**Decision:** 14 route integration tests cover the transport contract: success (200), invalid JSON (400), invalid shape (400), auth errors (401), org selection (409), access denied (403), internal errors (500). Tests mock only the invocation boundary. No production code changes.
+
+---
+
+## Decision 044
+
+**Title:** Invocation boundary integration test baseline accepted
+**Status:** Final
+**Decision:** 12 invocation boundary tests cover access passthrough, metadata derivation, delegation, and failure passthrough. Tests mock requireActorAccess, createAdminClient, and runAndPersistDirectEvaluation. No production code changes.
+
+---
+
+## Decision 045
+
+**Title:** Run-and-persist workflow integration test baseline accepted
+**Status:** Final
+**Decision:** 11 workflow tests cover delegation, metadata passthrough, trace explanation sourcing (supported/unsupported-skipped/unsupported-non-skipped), null rule set, and failure passthrough. Tests mock runDirectEvaluation, persistDirectEvaluationRun, and renderDirectEvaluationRuleTraceExplanation. No production code changes.
+
+---
+
+## Decision 046
+
+**Title:** Persistence write service integration test baseline accepted
+**Status:** Final
+**Decision:** 9 persistence tests cover insert ordering (run → result → traces), field mapping, linkage, zero traces, and failure passthrough. Tests mock only the Supabase client chain. No production code changes.
+
+---
+
+## Decision 047
+
+**Title:** Generic direct-evaluation orchestration integration test baseline accepted
+**Status:** Final
+**Decision:** 14 generic orchestration tests cover family routing for all 4 supported families, exact param passthrough, non-target orchestrator not called, and error passthrough. Tests mock runBritishDirectEvaluation and runSimpleFormDirectEvaluation. No production code changes.
+
+---
+
+## Decision 048
+
+**Title:** British direct-evaluation orchestration integration test baseline accepted
+**Status:** Final
+**Decision:** 13 British orchestration tests cover the full 7-stage composition sequence (preparation → resolver → executor → assembler → 3 renderers), result shape, and failure passthrough for each stage. Tests mock all 7 composed modules. No production code changes.

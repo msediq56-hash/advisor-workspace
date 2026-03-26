@@ -17,7 +17,7 @@ Phase 5 Evaluation execution baseline is implemented (minimum_subject_count rule
 Phase 5 Result assembly baseline is implemented.
 Phase 5 Explanation rendering baseline is implemented (primary reason, next step, advisory notes, trace-level rule explanations — all Arabic).
 
-British, simple-form, and generic multi-family direct-evaluation in-memory orchestration baselines are implemented. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first direct-evaluation POST route handler are implemented. No business UI. No import pipeline. No admin UI. No CRM features.
+British, simple-form, and generic multi-family direct-evaluation in-memory orchestration baselines are implemented. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first direct-evaluation POST route handler are implemented. Route layer is hardened (request/response/error-response schemas, narrow error classification). Verification baseline exists (Vitest, route tests, invocation boundary tests, workflow tests, persistence tests, generic orchestration tests, British orchestration tests). No business UI. No import pipeline. No admin UI. No CRM features.
 
 ## Authoritative references
 
@@ -157,10 +157,28 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 ### Phase 5 Direct-evaluation route handler baseline
 
 - `src/types/direct-evaluation-route.ts` — transport request/response types, explicit hardened request parser (`parseDirectEvaluationRouteRequestBody`), `RouteValidationError`; validates transport shape: body object, sourceProfileId, evaluation object, supported family, offeringId, qualificationTypeKey, family-specific payload/answers, optional organizationId/allowedRoles
-- `src/app/api/direct-evaluation/route.ts` — thin POST route over `invokeDirectEvaluationWorkflow(...)`; hardened transport-shape parsing via explicit parser; 400 for invalid JSON/invalid transport shape; narrow local error classification for known access/auth failures (401 unauthenticated, 409 org selection required, 403 access denied, 500 otherwise); no business UI, no server actions, no broader transport framework
+- `src/app/api/direct-evaluation/route.ts` — thin POST route over `invokeDirectEvaluationWorkflow(...)`; hardened transport-shape parsing via explicit parser; explicit success response serializer; explicit error response serializer with typed error codes; 400 for invalid JSON/invalid transport shape; narrow local error classification (401/409/403/500); no business UI, no server actions, no broader transport framework
+
+### Phase 5 Route hardening baselines
+
+- `src/types/direct-evaluation-route.ts` — additionally exports: `DirectEvaluationRouteErrorCode`, `DirectEvaluationRouteErrorResponseBody`, `toDirectEvaluationRouteResponseBody(...)`, `toDirectEvaluationRouteErrorResponseBody(...)`
+- Request schema hardening: explicit `parseDirectEvaluationRouteRequestBody(...)` with family-specific and access-param transport validation
+- Response schema hardening: explicit `toDirectEvaluationRouteResponseBody(...)` mapping workflow output into typed response
+- Error response schema hardening: explicit `toDirectEvaluationRouteErrorResponseBody(...)` with typed `DirectEvaluationRouteErrorCode` union
+
+### Phase 5 Verification baselines
+
+- `vitest.config.ts` — Vitest test framework bootstrap (node environment, @/ path alias)
+- `src/app/api/direct-evaluation/route.test.ts` — 14 route integration tests (success, 400 invalid JSON/shape, 401/409/403/500 error classification)
+- `src/modules/evaluation/invoke-direct-evaluation-workflow.test.ts` — 12 invocation boundary tests (access passthrough, metadata derivation, delegation, failure passthrough)
+- `src/modules/evaluation/run-and-persist-direct-evaluation.test.ts` — 11 workflow tests (delegation, metadata passthrough, trace explanation sourcing, failure passthrough)
+- `src/modules/evaluation/persist-direct-evaluation-run.test.ts` — 9 persistence tests (insert ordering, field mapping, linkage, zero traces, failure passthrough)
+- `src/modules/evaluation/run-direct-evaluation.test.ts` — 14 generic orchestration tests (family routing, param passthrough, error passthrough)
+- `src/modules/evaluation/run-british-direct-evaluation.test.ts` — 13 British orchestration tests (composition sequence, result shape, failure passthrough for all 7 stages)
 
 ## What has NOT started yet
 
+- No simple-form direct-evaluation orchestration integration tests yet
 - No broader direct-evaluation API surface beyond the first POST route baseline
 - No business UI
 - No broader evaluator support beyond `minimum_subject_count`
@@ -171,7 +189,7 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 
 ## Current recommended next step
 
-Direct-evaluation route response schema hardening baseline (still no business UI).
+Simple-form direct-evaluation orchestration integration test baseline.
 
 ## Critical constraints to remember
 
@@ -184,7 +202,7 @@ Direct-evaluation route response schema hardening baseline (still no business UI
 
 ## Last architectural state
 
-Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes, trace-level rule explanations). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first POST route handler baseline exist. Route surface is still narrow (thin POST, hardened transport-shape parsing, narrow local error classification for known access/auth failures). No business UI exists yet.
+Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes, trace-level rule explanations). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first POST route handler baseline exist. Route layer is hardened at request/response/error-response level with narrow local error classification. Verification baseline covers route, invocation boundary, workflow, persistence, generic orchestration, and British orchestration (73 tests total via Vitest). Simple-form orchestration tests still pending. No business UI exists yet.
 
 ## If this project is reopened in a new chat
 
