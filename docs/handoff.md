@@ -17,7 +17,7 @@ Phase 5 Evaluation execution baseline is implemented (minimum_subject_count rule
 Phase 5 Result assembly baseline is implemented.
 Phase 5 Explanation rendering baseline is implemented (primary reason, next step, advisory notes — all Arabic).
 
-British direct-evaluation in-memory orchestration baseline is implemented. No simple-form orchestration baseline yet. No persistence for evaluation runs/results/traces. No import pipeline. No admin UI. No business UI. No CRM features.
+British and simple-form direct-evaluation in-memory orchestration baselines are implemented. No generic multi-family orchestration yet. No persistence for evaluation runs/results/traces. No import pipeline. No admin UI. No business UI. No CRM features.
 
 ## Authoritative references
 
@@ -114,7 +114,7 @@ British direct-evaluation in-memory orchestration baseline is implemented. No si
 
 - `src/types/direct-evaluation-execution.ts` — execution trace types (rule/group outcomes)
 - `src/modules/evaluation/evaluate-minimum-subject-count-rule.ts` — minimum_subject_count rule executor (composes British count helper)
-- `src/modules/evaluation/execute-direct-evaluation-rule-context.ts` — resolved context executor (minimum_subject_count supported, unsupported types skipped)
+- `src/modules/evaluation/execute-direct-evaluation-rule-context.ts` — resolved context executor (accepts both British and simple-form prepared input; minimum_subject_count British-only, skipped for non-British; unsupported types skipped)
 
 ### Phase 5 Result assembly baseline
 
@@ -130,15 +130,15 @@ British direct-evaluation in-memory orchestration baseline is implemented. No si
 - `src/modules/evaluation/render-direct-evaluation-next-step.ts` — Arabic next step from primaryReasonKey
 - `src/modules/evaluation/render-direct-evaluation-advisory-notes.ts` — Arabic advisory notes from group outcomes
 
-### Phase 5 Orchestration baseline (British only)
+### Phase 5 Orchestration baselines
 
-- `src/types/direct-evaluation-orchestration.ts` — composed runtime result type
+- `src/types/direct-evaluation-orchestration.ts` — composed runtime result types (British + simple-form)
 - `src/modules/evaluation/run-british-direct-evaluation.ts` — British direct-evaluation in-memory orchestrator (composes preparation → rule resolution → execution → assembly → rendering)
+- `src/modules/evaluation/run-simple-form-direct-evaluation.ts` — simple-form direct-evaluation in-memory orchestrator (same composition sequence, uses prepared-input resolver path)
 
 ## What has NOT started yet
 
-- No simple-form direct-evaluation orchestration baseline yet
-- No generic multi-family orchestration yet
+- No generic multi-family direct-evaluation orchestration yet
 - No persistence for evaluation runs, results, or traces
 - No broader evaluator support beyond `minimum_subject_count`
 - No broader explanation rendering beyond the current Arabic baseline
@@ -149,7 +149,7 @@ British direct-evaluation in-memory orchestration baseline is implemented. No si
 
 ## Current recommended next step
 
-Simple-form direct-evaluation orchestration baseline (in-memory only, no persistence, no UI).
+Generic multi-family direct-evaluation orchestration baseline (in-memory only, no persistence, no UI).
 
 ## Critical constraints to remember
 
@@ -162,7 +162,7 @@ Simple-form direct-evaluation orchestration baseline (in-memory only, no persist
 
 ## Last architectural state
 
-Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes). British direct-evaluation in-memory orchestration baseline exists. No simple-form orchestration, persistence layer, or business UI exists yet.
+Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. No generic multi-family orchestration, persistence layer, or business UI exists yet.
 
 ## If this project is reopened in a new chat
 

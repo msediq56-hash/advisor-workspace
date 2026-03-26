@@ -184,7 +184,7 @@
 
 **Title:** Direct evaluation runtime pipeline is split into sequential composable phases
 **Status:** Final
-**Decision:** Direct evaluation runtime is being built as sequential composable phases: (1) target context resolution, (2) qualification definition/profile capture, (3) normalization, (4) rule context resolution, (5) evaluation execution, (6) result assembly, (7) explanation rendering. Each phase is a separate composable service. Phases 1–4 are implemented. Service-layer baselines for later evaluation phases are implemented in part. British direct-evaluation in-memory orchestration baseline exists. No simple-form orchestration, persistence layer, business UI, or full general comparison flow exists yet.
+**Decision:** Direct evaluation runtime is being built as sequential composable phases: (1) target context resolution, (2) qualification definition/profile capture, (3) normalization, (4) rule context resolution, (5) evaluation execution, (6) result assembly, (7) explanation rendering. Each phase is a separate composable service. Phases 1–4 are implemented. Service-layer baselines for later evaluation phases are implemented in part. Per-family orchestration baselines exist for British and simple-form paths. No generic multi-family orchestration, persistence layer, business UI, or full general comparison flow exists yet.
 
 ---
 
@@ -241,3 +241,19 @@
 **Title:** British direct-evaluation orchestration baseline is an in-memory composition layer
 **Status:** Final
 **Decision:** The British direct-evaluation orchestration baseline composes existing runtime slices in sequence (preparation → rule resolution → execution → assembly → rendering) and returns one composed result object in memory. It is British-only in this slice. It does not add persistence, UI, new rule types, or generic multi-family routing.
+
+---
+
+## Decision 031
+
+**Title:** Simple-form direct-evaluation orchestration baseline is an in-memory composition layer
+**Status:** Final
+**Decision:** The simple-form direct-evaluation orchestration baseline composes existing runtime slices in the same sequence as the British orchestrator (preparation → rule resolution → execution → assembly → rendering) and returns one composed result object in memory. It is simple-form-only in this slice. It uses the prepared-input resolver path to avoid double preparation. It does not add persistence, UI, new rule types, or generic multi-family routing.
+
+---
+
+## Decision 032
+
+**Title:** Executor prepared-input contract accepts both British and simple-form families
+**Status:** Final
+**Decision:** The direct-evaluation rule-context executor accepts both `PreparedBritishDirectEvaluation` and `PreparedSimpleFormDirectEvaluation` as prepared input. `minimum_subject_count` remains British-only — for non-British prepared input it produces a `skipped` trace entry instead of executing. This uses the `qualificationFamily` discriminant on the normalized profile for narrowing.
