@@ -385,3 +385,27 @@
 **Title:** British direct-evaluation orchestration integration test baseline accepted
 **Status:** Final
 **Decision:** 13 British orchestration tests cover the full 7-stage composition sequence (preparation → resolver → executor → assembler → 3 renderers), result shape, and failure passthrough for each stage. Tests mock all 7 composed modules. No production code changes.
+
+---
+
+## Decision 049
+
+**Title:** Simple-form direct-evaluation orchestration integration test baseline accepted
+**Status:** Final
+**Decision:** 13 simple-form orchestration tests cover the full 7-stage composition sequence (preparation → prepared-input resolver → executor → assembler → 3 renderers), result shape, and failure passthrough for each stage. Tests mock all 7 composed modules. No production code changes.
+
+---
+
+## Decision 050
+
+**Title:** Direct-evaluation execution engine integration test baseline accepted
+**Status:** Final
+**Decision:** 10 execution engine tests cover supported British minimum_subject_count pass/fail, non-British skip, unsupported rule-type skip, group outcome derivation (failed/passed/skipped), empty groups, multiple groups in order, and output structure preservation. Tests mock only evaluateMinimumSubjectCountRule. No production code changes.
+
+---
+
+## Decision 051
+
+**Title:** Direct-evaluation result assembly integration test baseline accepted
+**Status:** Final
+**Decision:** 13 result assembly tests cover final status derivation (eligible/not_eligible/needs_review/conditional/empty), severity priority (blocking > review > conditional), advisory non-downgrade, summary counters (matchedRulesCount, failedGroupsCount, conditionalGroupsCount), and trace preservation. Pure input fixtures, no mocks. No production code changes.

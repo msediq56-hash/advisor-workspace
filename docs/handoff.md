@@ -175,10 +175,15 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 - `src/modules/evaluation/persist-direct-evaluation-run.test.ts` — 9 persistence tests (insert ordering, field mapping, linkage, zero traces, failure passthrough)
 - `src/modules/evaluation/run-direct-evaluation.test.ts` — 14 generic orchestration tests (family routing, param passthrough, error passthrough)
 - `src/modules/evaluation/run-british-direct-evaluation.test.ts` — 13 British orchestration tests (composition sequence, result shape, failure passthrough for all 7 stages)
+- `src/modules/evaluation/run-simple-form-direct-evaluation.test.ts` — 13 simple-form orchestration tests (composition sequence, result shape, failure passthrough for all 7 stages)
+- `src/modules/evaluation/execute-direct-evaluation-rule-context.test.ts` — 10 execution engine tests (supported British pass/fail, non-British skip, unsupported type skip, group outcome derivation, empty groups, multiple groups, output structure)
+- `src/modules/evaluation/assemble-direct-evaluation-result.test.ts` — 13 result assembly tests (final status derivation, severity priority, advisory non-downgrade, summary counters, trace preservation, empty input)
 
 ## What has NOT started yet
 
-- No simple-form direct-evaluation orchestration integration tests yet
+- No primary-reason renderer integration tests yet
+- No next-step renderer integration tests yet
+- No advisory-notes renderer integration tests yet
 - No broader direct-evaluation API surface beyond the first POST route baseline
 - No business UI
 - No broader evaluator support beyond `minimum_subject_count`
@@ -189,7 +194,7 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 
 ## Current recommended next step
 
-Simple-form direct-evaluation orchestration integration test baseline.
+Direct-evaluation primary-reason renderer integration test baseline.
 
 ## Critical constraints to remember
 
@@ -202,7 +207,7 @@ Simple-form direct-evaluation orchestration integration test baseline.
 
 ## Last architectural state
 
-Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes, trace-level rule explanations). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first POST route handler baseline exist. Route layer is hardened at request/response/error-response level with narrow local error classification. Verification baseline covers route, invocation boundary, workflow, persistence, generic orchestration, and British orchestration (73 tests total via Vitest). Simple-form orchestration tests still pending. No business UI exists yet.
+Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes, trace-level rule explanations). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first POST route handler baseline exist. Route layer is hardened at request/response/error-response level with narrow local error classification. Verification baseline covers route, invocation boundary, workflow, persistence, generic orchestration, British orchestration, simple-form orchestration, execution engine, and result assembly (109 tests total via Vitest). Renderer tests still pending. No business UI exists yet.
 
 ## If this project is reopened in a new chat
 
