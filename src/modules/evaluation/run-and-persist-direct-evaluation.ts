@@ -95,7 +95,9 @@ export async function runAndPersistDirectEvaluation(params: {
 
 /**
  * Map execution group traces into flat persistence trace rows.
- * Sources `explanation_ar` from the dedicated trace explanation renderer only.
+ * Sources `explanation_ar` from the dedicated trace explanation renderer
+ * for supported rule types. Handles skipped unsupported rule types with
+ * a fixed compatibility string. Throws on unsupported non-skipped traces.
  */
 function mapRuleTraces(
   ruleSetVersionId: string | null,
@@ -109,12 +111,7 @@ function mapRuleTraces(
 
   for (const group of groupExecutions) {
     for (const rule of group.ruleExecutions) {
-      const { explanationAr } = renderDirectEvaluationRuleTraceExplanation({
-        ruleTypeKey: rule.ruleTypeKey,
-        outcome: rule.outcome,
-        matchedCount: rule.matchedCount,
-        requiredCount: rule.requiredCount,
-      });
+      const explanationAr = resolveTraceExplanationAr(rule);
 
       traces.push({
         rule_set_version_id: ruleSetVersionId,
@@ -130,4 +127,37 @@ function mapRuleTraces(
   }
 
   return traces;
+}
+
+const UNSUPPORTED_SKIPPED_EXPLANATION_AR =
+  "تم تخطي القاعدة — نوع القاعدة غير مدعوم حاليًا في شرح التتبع.";
+
+/**
+ * Resolve explanation_ar for one rule trace.
+ * - Supported rule types: delegate to dedicated renderer.
+ * - Unsupported + skipped: fixed compatibility string.
+ * - Unsupported + non-skipped: throw.
+ */
+function resolveTraceExplanationAr(rule: {
+  ruleTypeKey: string;
+  outcome: string;
+  matchedCount?: number;
+  requiredCount?: number;
+}): string {
+  if (rule.ruleTypeKey === "minimum_subject_count") {
+    return renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: rule.ruleTypeKey,
+      outcome: rule.outcome as "passed" | "failed" | "skipped",
+      matchedCount: rule.matchedCount,
+      requiredCount: rule.requiredCount,
+    }).explanationAr;
+  }
+
+  if (rule.outcome === "skipped") {
+    return UNSUPPORTED_SKIPPED_EXPLANATION_AR;
+  }
+
+  throw new Error(
+    `Cannot persist trace explanation for unsupported rule type "${rule.ruleTypeKey}" with non-skipped outcome "${rule.outcome}".`
+  );
 }
