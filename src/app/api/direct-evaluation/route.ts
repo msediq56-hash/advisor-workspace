@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { invokeDirectEvaluationWorkflow } from "@/modules/evaluation/invoke-direct-evaluation-workflow";
 import {
   parseDirectEvaluationRouteRequestBody,
+  toDirectEvaluationRouteResponseBody,
   RouteValidationError,
 } from "@/types/direct-evaluation-route";
 
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
       sourceProfileId: body.sourceProfileId,
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json(toDirectEvaluationRouteResponseBody(result));
   } catch (err: unknown) {
     const classified = classifyRouteError(err);
 

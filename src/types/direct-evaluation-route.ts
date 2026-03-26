@@ -1,8 +1,9 @@
 /**
- * Direct evaluation route/API transport types and request parser.
+ * Direct evaluation route/API transport types, request parser, and response serializer.
  *
- * Explicit hardened transport-shape validation for the first POST route handler.
- * Does not duplicate business-level validation handled by lower layers.
+ * Explicit hardened transport-shape validation and response mapping for
+ * the first POST route handler. Does not duplicate business-level
+ * validation handled by lower layers.
  * No business UI types. No broader transport framework.
  */
 
@@ -159,4 +160,26 @@ export class RouteValidationError extends Error {
     super(message);
     this.name = "RouteValidationError";
   }
+}
+
+// ---------------------------------------------------------------------------
+// Explicit response serializer
+// ---------------------------------------------------------------------------
+
+/**
+ * Map the workflow output into an explicit route response body.
+ * Preserves the current approved response shape only.
+ * Does not pass through raw unknown values or add derived fields.
+ */
+export function toDirectEvaluationRouteResponseBody(
+  value: InvokeDirectEvaluationWorkflowResult
+): DirectEvaluationRouteResponseBody {
+  return {
+    runtime: value.runtime,
+    persistence: {
+      evaluationRunId: value.persistence.evaluationRunId,
+      evaluationResultId: value.persistence.evaluationResultId,
+      persistedRuleTraceCount: value.persistence.persistedRuleTraceCount,
+    },
+  };
 }
