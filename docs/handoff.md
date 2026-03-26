@@ -15,7 +15,7 @@ Phase 4 British count-based rules support baseline is implemented.
 Phase 4 Evaluation rule context resolver with execution-ready rule group/rule loading is implemented.
 Phase 5 Evaluation execution baseline is implemented (minimum_subject_count rule type only).
 Phase 5 Result assembly baseline is implemented.
-Phase 5 Explanation rendering baseline is implemented (primary reason, next step, advisory notes — all Arabic).
+Phase 5 Explanation rendering baseline is implemented (primary reason, next step, advisory notes, trace-level rule explanations — all Arabic).
 
 British, simple-form, and generic multi-family direct-evaluation in-memory orchestration baselines are implemented. Direct-evaluation persistence write baseline exists (not yet wired into orchestrators or UI). No import pipeline. No admin UI. No business UI. No CRM features.
 
@@ -129,6 +129,8 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 - `src/modules/evaluation/render-direct-evaluation-primary-reason.ts` — Arabic primary reason from primaryReasonKey
 - `src/modules/evaluation/render-direct-evaluation-next-step.ts` — Arabic next step from primaryReasonKey
 - `src/modules/evaluation/render-direct-evaluation-advisory-notes.ts` — Arabic advisory notes from group outcomes
+- `src/types/direct-evaluation-trace-explanation.ts` — trace-level explanation input/result types
+- `src/modules/evaluation/render-direct-evaluation-rule-trace-explanation.ts` — dedicated pure Arabic trace explanation renderer (minimum_subject_count only; passed/failed/skipped; throws on unsupported types or missing counts)
 
 ### Phase 5 Orchestration baselines
 
@@ -146,7 +148,7 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 
 - No run-and-persist workflow wiring (persistence write baseline exists but is not yet called from orchestrators or UI)
 - No broader evaluator support beyond `minimum_subject_count`
-- No broader explanation rendering beyond the current Arabic baseline
+- No broader explanation rendering beyond the current approved Arabic baselines (trace-level rendering limited to `minimum_subject_count`)
 - No import pipeline (tables or code)
 - No admin UI
 - No business UI
@@ -167,7 +169,7 @@ Direct-evaluation run-and-persist workflow baseline (wire orchestration result i
 
 ## Last architectural state
 
-Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline exists (evaluation_runs, evaluation_results, evaluation_rule_traces) but is not yet wired into orchestrators or UI. No business UI exists yet.
+Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes, trace-level rule explanations). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline exists (evaluation_runs, evaluation_results, evaluation_rule_traces) but is not yet wired into orchestrators or UI. No business UI exists yet.
 
 ## If this project is reopened in a new chat
 
