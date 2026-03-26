@@ -1,43 +1,19 @@
 /**
  * POST /api/direct-evaluation
  *
- * Direct-evaluation route handler with narrow error classification.
+ * Direct-evaluation route handler with hardened request schema validation
+ * and narrow error classification.
+ *
  * Thin transport wiring over the existing server-side invocation boundary.
- *
- * Accepts a direct-evaluation request, validates the minimal transport shape,
- * calls invokeDirectEvaluationWorkflow, and returns the workflow result as JSON.
- *
- * Error classification is based on exact known error messages from the
- * existing approved access/auth path. No broad framework. No middleware.
- * No business UI. No server actions.
+ * No business UI. No server actions. No middleware changes.
  */
 
 import { NextResponse } from "next/server";
 import { invokeDirectEvaluationWorkflow } from "@/modules/evaluation/invoke-direct-evaluation-workflow";
-import type { DirectEvaluationRouteRequestBody } from "@/types/direct-evaluation-route";
-
-/**
- * Minimal transport shape validation for the request body.
- * Does not duplicate business validation already handled by lower layers.
- */
-function isValidRequestBody(body: unknown): body is DirectEvaluationRouteRequestBody {
-  if (typeof body !== "object" || body === null) return false;
-
-  const obj = body as Record<string, unknown>;
-
-  // evaluation must be present and an object with family
-  if (typeof obj.evaluation !== "object" || obj.evaluation === null) return false;
-  const evaluation = obj.evaluation as Record<string, unknown>;
-  if (typeof evaluation.family !== "string") return false;
-  if (typeof evaluation.offeringId !== "string") return false;
-  if (typeof evaluation.qualificationTypeKey !== "string") return false;
-
-  // sourceProfileId must be present (string or null)
-  if (!("sourceProfileId" in obj)) return false;
-  if (obj.sourceProfileId !== null && typeof obj.sourceProfileId !== "string") return false;
-
-  return true;
-}
+import {
+  parseDirectEvaluationRouteRequestBody,
+  RouteValidationError,
+} from "@/types/direct-evaluation-route";
 
 // ---------------------------------------------------------------------------
 // Narrow route error classifier
@@ -88,9 +64,9 @@ function classifyRouteError(err: unknown): ClassifiedRouteError {
 
 export async function POST(request: Request) {
   // 1. Parse JSON body
-  let body: unknown;
+  let rawBody: unknown;
   try {
-    body = await request.json();
+    rawBody = await request.json();
   } catch {
     return NextResponse.json(
       { error: { code: "invalid_json", message: "Invalid JSON request body" } },
@@ -98,10 +74,19 @@ export async function POST(request: Request) {
     );
   }
 
-  // 2. Validate minimal transport shape
-  if (!isValidRequestBody(body)) {
+  // 2. Parse and validate transport shape
+  let body;
+  try {
+    body = parseDirectEvaluationRouteRequestBody(rawBody);
+  } catch (err: unknown) {
+    if (err instanceof RouteValidationError) {
+      return NextResponse.json(
+        { error: { code: "invalid_request", message: err.message } },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
-      { error: { code: "invalid_request", message: "Invalid request body: evaluation (with family, offeringId, qualificationTypeKey) and sourceProfileId are required" } },
+      { error: { code: "invalid_request", message: "Invalid request body" } },
       { status: 400 }
     );
   }
