@@ -17,7 +17,7 @@ Phase 5 Evaluation execution baseline is implemented (minimum_subject_count rule
 Phase 5 Result assembly baseline is implemented.
 Phase 5 Explanation rendering baseline is implemented (primary reason, next step, advisory notes, trace-level rule explanations — all Arabic).
 
-British, simple-form, and generic multi-family direct-evaluation in-memory orchestration baselines are implemented. Direct-evaluation persistence write baseline exists (not yet wired into orchestrators or UI). No import pipeline. No admin UI. No business UI. No CRM features.
+British, simple-form, and generic multi-family direct-evaluation in-memory orchestration baselines are implemented. Direct-evaluation persistence write baseline and run-and-persist workflow baseline are implemented (service-layer only, no UI, no routes, no API handlers). No import pipeline. No admin UI. No business UI. No CRM features.
 
 ## Authoritative references
 
@@ -144,11 +144,16 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 - `src/types/direct-evaluation-persistence.ts` — typed persistence payload/result shapes for evaluation_runs, evaluation_results, evaluation_rule_traces
 - `src/modules/evaluation/persist-direct-evaluation-run.ts` — sequential write service (run → result → traces); caller-supplied Supabase client and caller-supplied already-computed payload; no execution/assembly/rendering inside persistence
 
+### Phase 5 Run-and-persist workflow baseline
+
+- `src/types/direct-evaluation-run-and-persist.ts` — workflow input/result types and caller-owned persistence metadata
+- `src/modules/evaluation/run-and-persist-direct-evaluation.ts` — service-layer composition: generic runtime + trace explanation renderer + persistence write service; caller-owned metadata explicit; unsupported skipped traces use fixed compatibility explanation; unsupported non-skipped traces throw; no UI, no routes, no API handlers, no server actions
+
 ## What has NOT started yet
 
-- No run-and-persist workflow wiring (persistence write baseline exists but is not yet called from orchestrators or UI)
+- No UI integration or routes/API handlers for direct evaluation
 - No broader evaluator support beyond `minimum_subject_count`
-- No broader explanation rendering beyond the current approved Arabic baselines (trace-level rendering limited to `minimum_subject_count`)
+- No broader trace explanation rendering across other rule types (trace-level rendering limited to `minimum_subject_count`; workflow uses fixed compatibility string for unsupported skipped traces only)
 - No import pipeline (tables or code)
 - No admin UI
 - No business UI
@@ -156,7 +161,7 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 
 ## Current recommended next step
 
-Direct-evaluation run-and-persist workflow baseline (wire orchestration result into persistence write service, in-memory only, no UI).
+First server-side invocation boundary for the direct-evaluation workflow (still no business UI).
 
 ## Critical constraints to remember
 
@@ -169,7 +174,7 @@ Direct-evaluation run-and-persist workflow baseline (wire orchestration result i
 
 ## Last architectural state
 
-Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes, trace-level rule explanations). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline exists (evaluation_runs, evaluation_results, evaluation_rule_traces) but is not yet wired into orchestrators or UI. No business UI exists yet.
+Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes, trace-level rule explanations). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; minimum_subject_count remains British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline and run-and-persist workflow baseline exist (service-layer only; trace explanation sourced from dedicated renderer for supported types, fixed compatibility string for unsupported skipped traces). No UI, routes, or API handlers for direct evaluation exist yet.
 
 ## If this project is reopened in a new chat
 
