@@ -1,13 +1,15 @@
 /**
  * POST /api/direct-evaluation
  *
- * First direct-evaluation route handler baseline.
+ * Direct-evaluation route handler with narrow error classification.
  * Thin transport wiring over the existing server-side invocation boundary.
  *
  * Accepts a direct-evaluation request, validates the minimal transport shape,
  * calls invokeDirectEvaluationWorkflow, and returns the workflow result as JSON.
  *
- * No business UI. No server actions. No middleware changes.
+ * Error classification is based on exact known error messages from the
+ * existing approved access/auth path. No broad framework. No middleware.
+ * No business UI. No server actions.
  */
 
 import { NextResponse } from "next/server";
@@ -37,6 +39,53 @@ function isValidRequestBody(body: unknown): body is DirectEvaluationRouteRequest
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// Narrow route error classifier
+// ---------------------------------------------------------------------------
+
+interface ClassifiedRouteError {
+  status: number;
+  code: string;
+  message: string;
+}
+
+/**
+ * Classify errors from the existing access/auth/workflow path into
+ * appropriate HTTP status codes. Uses exact known error message prefixes
+ * from the approved access helpers. Falls back to 500 for anything else.
+ */
+function classifyRouteError(err: unknown): ClassifiedRouteError {
+  const message = err instanceof Error ? err.message : "Internal server error";
+
+  // 401 — unauthenticated / no usable identity
+  if (
+    message === "Authentication required" ||
+    message === "Active user profile not found"
+  ) {
+    return { status: 401, code: "unauthenticated", message };
+  }
+
+  // 409 — org selection required
+  if (message === "Org context not resolved: multiple_active_memberships_requires_selection") {
+    return { status: 409, code: "org_selection_required", message };
+  }
+
+  // 403 — org/membership/role access denied
+  if (
+    message.startsWith("Org context not resolved:") ||
+    message.startsWith("Insufficient role:")
+  ) {
+    return { status: 403, code: "access_denied", message };
+  }
+
+  // 500 — everything else
+  return { status: 500, code: "internal_error", message };
+}
+
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
+
 export async function POST(request: Request) {
   // 1. Parse JSON body
   let body: unknown;
@@ -44,7 +93,7 @@ export async function POST(request: Request) {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { error: "Invalid JSON request body" },
+      { error: { code: "invalid_json", message: "Invalid JSON request body" } },
       { status: 400 }
     );
   }
@@ -52,7 +101,7 @@ export async function POST(request: Request) {
   // 2. Validate minimal transport shape
   if (!isValidRequestBody(body)) {
     return NextResponse.json(
-      { error: "Invalid request body: evaluation (with family, offeringId, qualificationTypeKey) and sourceProfileId are required" },
+      { error: { code: "invalid_request", message: "Invalid request body: evaluation (with family, offeringId, qualificationTypeKey) and sourceProfileId are required" } },
       { status: 400 }
     );
   }
@@ -66,11 +115,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Internal server error";
+    const classified = classifyRouteError(err);
 
     return NextResponse.json(
-      { error: message },
-      { status: 500 }
+      { error: { code: classified.code, message: classified.message } },
+      { status: classified.status }
     );
   }
 }
