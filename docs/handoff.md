@@ -162,7 +162,6 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 - No broader trace explanation rendering across other rule types (trace-level rendering limited to `minimum_subject_count`; workflow uses fixed compatibility string for unsupported skipped traces only)
 - No import pipeline (tables or code)
 - No admin UI
-- No business UI
 - No CRM features
 
 ## Current recommended next step
