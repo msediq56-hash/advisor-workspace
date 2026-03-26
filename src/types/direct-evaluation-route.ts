@@ -163,7 +163,7 @@ export class RouteValidationError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Explicit response serializer
+// Explicit success response serializer
 // ---------------------------------------------------------------------------
 
 /**
@@ -180,6 +180,43 @@ export function toDirectEvaluationRouteResponseBody(
       evaluationRunId: value.persistence.evaluationRunId,
       evaluationResultId: value.persistence.evaluationResultId,
       persistedRuleTraceCount: value.persistence.persistedRuleTraceCount,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Explicit error response contract
+// ---------------------------------------------------------------------------
+
+/** Narrow union of currently approved route error codes. */
+export type DirectEvaluationRouteErrorCode =
+  | "invalid_json"
+  | "invalid_request_shape"
+  | "authentication_required"
+  | "org_selection_required"
+  | "access_denied"
+  | "internal_error";
+
+/** Explicit local error response body for the direct-evaluation route. */
+export interface DirectEvaluationRouteErrorResponseBody {
+  error: {
+    code: DirectEvaluationRouteErrorCode;
+    message: string;
+  };
+}
+
+/**
+ * Build an explicit route error response body.
+ * Local serializer only — not a global API envelope.
+ */
+export function toDirectEvaluationRouteErrorResponseBody(params: {
+  code: DirectEvaluationRouteErrorCode;
+  message: string;
+}): DirectEvaluationRouteErrorResponseBody {
+  return {
+    error: {
+      code: params.code,
+      message: params.message,
     },
   };
 }

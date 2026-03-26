@@ -1,7 +1,7 @@
 /**
  * POST /api/direct-evaluation
  *
- * Direct-evaluation route handler with hardened request schema validation
+ * Direct-evaluation route handler with hardened request/response/error schemas
  * and narrow error classification.
  *
  * Thin transport wiring over the existing server-side invocation boundary.
@@ -13,8 +13,10 @@ import { invokeDirectEvaluationWorkflow } from "@/modules/evaluation/invoke-dire
 import {
   parseDirectEvaluationRouteRequestBody,
   toDirectEvaluationRouteResponseBody,
+  toDirectEvaluationRouteErrorResponseBody,
   RouteValidationError,
 } from "@/types/direct-evaluation-route";
+import type { DirectEvaluationRouteErrorCode } from "@/types/direct-evaluation-route";
 
 // ---------------------------------------------------------------------------
 // Narrow route error classifier
@@ -22,7 +24,7 @@ import {
 
 interface ClassifiedRouteError {
   status: number;
-  code: string;
+  code: DirectEvaluationRouteErrorCode;
   message: string;
 }
 
@@ -39,7 +41,7 @@ function classifyRouteError(err: unknown): ClassifiedRouteError {
     message === "Authentication required" ||
     message === "Active user profile not found"
   ) {
-    return { status: 401, code: "unauthenticated", message };
+    return { status: 401, code: "authentication_required", message };
   }
 
   // 409 — org selection required
@@ -70,7 +72,10 @@ export async function POST(request: Request) {
     rawBody = await request.json();
   } catch {
     return NextResponse.json(
-      { error: { code: "invalid_json", message: "Invalid JSON request body" } },
+      toDirectEvaluationRouteErrorResponseBody({
+        code: "invalid_json",
+        message: "Invalid JSON request body",
+      }),
       { status: 400 }
     );
   }
@@ -80,14 +85,16 @@ export async function POST(request: Request) {
   try {
     body = parseDirectEvaluationRouteRequestBody(rawBody);
   } catch (err: unknown) {
-    if (err instanceof RouteValidationError) {
-      return NextResponse.json(
-        { error: { code: "invalid_request", message: err.message } },
-        { status: 400 }
-      );
-    }
+    const message =
+      err instanceof RouteValidationError
+        ? err.message
+        : "Invalid request body";
+
     return NextResponse.json(
-      { error: { code: "invalid_request", message: "Invalid request body" } },
+      toDirectEvaluationRouteErrorResponseBody({
+        code: "invalid_request_shape",
+        message,
+      }),
       { status: 400 }
     );
   }
@@ -104,7 +111,10 @@ export async function POST(request: Request) {
     const classified = classifyRouteError(err);
 
     return NextResponse.json(
-      { error: { code: classified.code, message: classified.message } },
+      toDirectEvaluationRouteErrorResponseBody({
+        code: classified.code,
+        message: classified.message,
+      }),
       { status: classified.status }
     );
   }
