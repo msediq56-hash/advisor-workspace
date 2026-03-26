@@ -2,12 +2,13 @@
  * Server-side direct-evaluation run-and-persist workflow baseline.
  *
  * Composes the existing generic orchestrator with the existing persistence
- * write service. Maps runtime result fields into persistence payload,
- * accepting only caller-owned metadata that is not derivable from the
- * runtime result.
+ * write service and the dedicated trace explanation renderer.
+ * Maps runtime result fields into persistence payload, accepting only
+ * caller-owned metadata that is not derivable from the runtime result.
  *
  * Does not add UI, routes, API handlers, session/org lookup, or new
- * evaluation logic. Pure service-layer composition only.
+ * evaluation logic. Does not generate trace explanation text inline —
+ * sources it from the dedicated trace explanation renderer only.
  *
  * Server-side only — do not import from client components.
  */
@@ -15,6 +16,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { runDirectEvaluation } from "@/modules/evaluation/run-direct-evaluation";
 import { persistDirectEvaluationRun } from "@/modules/evaluation/persist-direct-evaluation-run";
+import { renderDirectEvaluationRuleTraceExplanation } from "@/modules/evaluation/render-direct-evaluation-rule-trace-explanation";
 import type {
   RunAndPersistDirectEvaluationInput,
   RunAndPersistDirectEvaluationResult,
@@ -23,14 +25,16 @@ import type {
   PersistDirectEvaluationRunInput,
   PersistEvaluationRuleTraceRowInput,
 } from "@/types/direct-evaluation-persistence";
+import type { DirectEvaluationRuleGroupExecution } from "@/types/direct-evaluation-execution";
 
 /**
  * Run a direct evaluation end-to-end and persist the result.
  *
  * 1. Calls the existing generic direct-evaluation orchestrator
  * 2. Maps the runtime result into persistence write input
- * 3. Writes run/result/traces through the existing persistence service
- * 4. Returns both the runtime result and persistence outcome
+ * 3. Sources per-trace explanation_ar from the dedicated renderer
+ * 4. Writes run/result/traces through the existing persistence service
+ * 5. Returns both the runtime result and persistence outcome
  */
 export async function runAndPersistDirectEvaluation(params: {
   supabase: SupabaseClient;
@@ -73,7 +77,10 @@ export async function runAndPersistDirectEvaluation(params: {
       conditional_groups_count: runtime.assembled.conditionalGroupsCount,
       trace_summary_jsonb: runtime.assembled.groupExecutions,
     },
-    ruleTraces: mapRuleTraces(runtime),
+    ruleTraces: mapRuleTraces(
+      ctx.resolvedRuleSet?.ruleSetVersionId ?? null,
+      runtime.execution.groupExecutions,
+    ),
   };
 
   // 3. Persist
@@ -88,20 +95,27 @@ export async function runAndPersistDirectEvaluation(params: {
 
 /**
  * Map execution group traces into flat persistence trace rows.
- * Generates a minimal `explanation_ar` per rule from available trace data.
+ * Sources `explanation_ar` from the dedicated trace explanation renderer only.
  */
 function mapRuleTraces(
-  runtime: { resolvedContext: { resolvedRuleSet: { ruleSetVersionId: string } | null }; execution: { groupExecutions: readonly import("@/types/direct-evaluation-execution").DirectEvaluationRuleGroupExecution[] } }
+  ruleSetVersionId: string | null,
+  groupExecutions: readonly DirectEvaluationRuleGroupExecution[],
 ): PersistEvaluationRuleTraceRowInput[] {
-  const ruleSetVersionId = runtime.resolvedContext.resolvedRuleSet?.ruleSetVersionId;
   if (!ruleSetVersionId) {
     return [];
   }
 
   const traces: PersistEvaluationRuleTraceRowInput[] = [];
 
-  for (const group of runtime.execution.groupExecutions) {
+  for (const group of groupExecutions) {
     for (const rule of group.ruleExecutions) {
+      const { explanationAr } = renderDirectEvaluationRuleTraceExplanation({
+        ruleTypeKey: rule.ruleTypeKey,
+        outcome: rule.outcome,
+        matchedCount: rule.matchedCount,
+        requiredCount: rule.requiredCount,
+      });
+
       traces.push({
         rule_set_version_id: ruleSetVersionId,
         rule_group_id: group.ruleGroupId,
@@ -110,39 +124,10 @@ function mapRuleTraces(
         group_severity_snapshot: group.groupSeverity,
         group_evaluation_mode_snapshot: group.groupEvaluationMode,
         outcome: rule.outcome,
-        explanation_ar: buildTraceExplanationAr(rule),
+        explanation_ar: explanationAr,
       });
     }
   }
 
   return traces;
-}
-
-/**
- * Build a minimal Arabic explanation for a single rule trace.
- * Uses only the fields already available from the execution trace.
- */
-function buildTraceExplanationAr(rule: {
-  ruleTypeKey: string;
-  outcome: string;
-  matchedCount?: number;
-  requiredCount?: number;
-}): string {
-  if (rule.outcome === "skipped") {
-    return `تم تخطي القاعدة (${rule.ruleTypeKey}) — نوع القاعدة غير مدعوم في هذه النسخة.`;
-  }
-
-  if (rule.ruleTypeKey === "minimum_subject_count") {
-    const matched = rule.matchedCount ?? 0;
-    const required = rule.requiredCount ?? 0;
-    if (rule.outcome === "passed") {
-      return `عدد المواد المطابقة (${matched}) يحقق الحد الأدنى المطلوب (${required}).`;
-    }
-    return `عدد المواد المطابقة (${matched}) لا يحقق الحد الأدنى المطلوب (${required}).`;
-  }
-
-  if (rule.outcome === "passed") {
-    return `القاعدة (${rule.ruleTypeKey}) تحققت.`;
-  }
-  return `القاعدة (${rule.ruleTypeKey}) لم تتحقق.`;
 }
