@@ -1,0 +1,353 @@
+/**
+ * Direct-evaluation execution engine integration test baseline.
+ *
+ * Tests the executor's rule dispatch, group outcome derivation,
+ * British/non-British narrowing, and unsupported rule-type handling.
+ *
+ * Mocks only: evaluateMinimumSubjectCountRule.
+ */
+
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("./evaluate-minimum-subject-count-rule", () => ({
+  evaluateMinimumSubjectCountRule: vi.fn(),
+}));
+
+import { executeDirectEvaluationRuleContext } from "./execute-direct-evaluation-rule-context";
+import { evaluateMinimumSubjectCountRule } from "./evaluate-minimum-subject-count-rule";
+
+const mockEvalRule = vi.mocked(evaluateMinimumSubjectCountRule);
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+function makeBritishPrepared() {
+  return {
+    workspace: {} as never,
+    target: {} as never,
+    qualificationDefinition: {} as never,
+    rawProfile: {} as never,
+    normalizedProfile: {
+      qualificationFamily: "british_curriculum" as const,
+      countryId: "c-1",
+      notesAr: null,
+      header: { curriculumLabel: "A Level", graduationYear: 2024, notesAr: null },
+      subjects: [],
+    },
+  };
+}
+
+function makeSimpleFormPrepared() {
+  return {
+    workspace: {} as never,
+    target: {} as never,
+    qualificationDefinition: {} as never,
+    rawProfile: {} as never,
+    normalizedProfile: {
+      qualificationFamily: "arabic_secondary" as const,
+      countryId: "c-1",
+      certificateName: "ثانوية",
+      finalAverage: 90,
+      gradingScale: "100",
+      graduationYear: 2024,
+      notesAr: null,
+    },
+  };
+}
+
+function makeResolvedContext(groups: Array<{
+  ruleGroupId: string;
+  groupSeverity: string;
+  groupEvaluationMode: string;
+  orderIndex: number;
+  rules: Array<{
+    ruleId: string;
+    ruleTypeKey: string;
+    ruleConfig: unknown;
+    orderIndex: number;
+  }>;
+}>) {
+  return {
+    workspace: {} as never,
+    target: {} as never,
+    qualificationDefinition: {} as never,
+    rawProfile: {} as never,
+    normalizedProfile: {} as never,
+    status: "supported" as const,
+    resolvedRuleSet: { ruleSetId: "rs-1", ruleSetVersionId: "rsv-1", targetScope: "offering", qualificationTypeId: "qt-1" },
+    ruleGroups: groups,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe("executeDirectEvaluationRuleContext", () => {
+  beforeEach(() => {
+    mockEvalRule.mockReset();
+  });
+
+  // -----------------------------------------------------------------------
+  // Supported: minimum_subject_count with British input
+  // -----------------------------------------------------------------------
+
+  it("evaluates minimum_subject_count as passed for British input", () => {
+    mockEvalRule.mockReturnValue({
+      outcome: "passed",
+      matchedCount: 5,
+      requiredCount: 3,
+      matchedSubjects: [],
+    });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(mockEvalRule).toHaveBeenCalledOnce();
+    expect(result.groupExecutions).toHaveLength(1);
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("passed");
+    expect(result.groupExecutions[0].ruleExecutions[0].matchedCount).toBe(5);
+    expect(result.groupExecutions[0].ruleExecutions[0].requiredCount).toBe(3);
+    expect(result.groupExecutions[0].groupOutcome).toBe("passed");
+  });
+
+  it("evaluates minimum_subject_count as failed for British input", () => {
+    mockEvalRule.mockReturnValue({
+      outcome: "failed",
+      matchedCount: 1,
+      requiredCount: 3,
+      matchedSubjects: [],
+    });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("failed");
+    expect(result.groupExecutions[0].ruleExecutions[0].matchedCount).toBe(1);
+    expect(result.groupExecutions[0].ruleExecutions[0].requiredCount).toBe(3);
+    expect(result.groupExecutions[0].groupOutcome).toBe("failed");
+  });
+
+  // -----------------------------------------------------------------------
+  // minimum_subject_count skipped for non-British input
+  // -----------------------------------------------------------------------
+
+  it("skips minimum_subject_count for simple-form input", () => {
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeSimpleFormPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(mockEvalRule).not.toHaveBeenCalled();
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("skipped");
+    expect(result.groupExecutions[0].groupOutcome).toBe("skipped");
+  });
+
+  // -----------------------------------------------------------------------
+  // Unsupported rule type
+  // -----------------------------------------------------------------------
+
+  it("skips unsupported rule types", () => {
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "unknown_rule_type", ruleConfig: {}, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(mockEvalRule).not.toHaveBeenCalled();
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("skipped");
+    expect(result.groupExecutions[0].ruleExecutions[0].ruleTypeKey).toBe("unknown_rule_type");
+    expect(result.groupExecutions[0].groupOutcome).toBe("skipped");
+  });
+
+  // -----------------------------------------------------------------------
+  // Group outcome derivation
+  // -----------------------------------------------------------------------
+
+  it("derives group outcome as failed when any rule fails", () => {
+    mockEvalRule
+      .mockReturnValueOnce({ outcome: "passed", matchedCount: 5, requiredCount: 3, matchedSubjects: [] })
+      .mockReturnValueOnce({ outcome: "failed", matchedCount: 1, requiredCount: 3, matchedSubjects: [] });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 0 },
+            { ruleId: "r-2", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 1 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].groupOutcome).toBe("failed");
+  });
+
+  it("derives group outcome as passed when all rules pass", () => {
+    mockEvalRule.mockReturnValue({ outcome: "passed", matchedCount: 5, requiredCount: 3, matchedSubjects: [] });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].groupOutcome).toBe("passed");
+  });
+
+  it("derives group outcome as skipped when all rules are skipped", () => {
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "unknown_type", ruleConfig: {}, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].groupOutcome).toBe("skipped");
+  });
+
+  // -----------------------------------------------------------------------
+  // Empty / no-rules
+  // -----------------------------------------------------------------------
+
+  it("returns empty groupExecutions for zero rule groups", () => {
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([]),
+    });
+
+    expect(result.groupExecutions).toHaveLength(0);
+  });
+
+  // -----------------------------------------------------------------------
+  // Multiple groups
+  // -----------------------------------------------------------------------
+
+  it("processes multiple groups in order", () => {
+    mockEvalRule.mockReturnValue({ outcome: "passed", matchedCount: 5, requiredCount: 3, matchedSubjects: [] });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 0 },
+          ],
+        },
+        {
+          ruleGroupId: "rg-2",
+          groupSeverity: "advisory",
+          groupEvaluationMode: "advisory_only",
+          orderIndex: 1,
+          rules: [
+            { ruleId: "r-2", ruleTypeKey: "unsupported_type", ruleConfig: {}, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions).toHaveLength(2);
+    expect(result.groupExecutions[0].ruleGroupId).toBe("rg-1");
+    expect(result.groupExecutions[0].groupOutcome).toBe("passed");
+    expect(result.groupExecutions[1].ruleGroupId).toBe("rg-2");
+    expect(result.groupExecutions[1].groupOutcome).toBe("skipped");
+  });
+
+  // -----------------------------------------------------------------------
+  // Output structure
+  // -----------------------------------------------------------------------
+
+  it("preserves group metadata in execution output", () => {
+    mockEvalRule.mockReturnValue({ outcome: "passed", matchedCount: 5, requiredCount: 3, matchedSubjects: [] });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "conditional",
+          groupEvaluationMode: "any_of",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    const group = result.groupExecutions[0];
+    expect(group.ruleGroupId).toBe("rg-1");
+    expect(group.groupSeverity).toBe("conditional");
+    expect(group.groupEvaluationMode).toBe("any_of");
+  });
+});
