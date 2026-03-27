@@ -409,3 +409,27 @@
 **Title:** Direct-evaluation result assembly integration test baseline accepted
 **Status:** Final
 **Decision:** 13 result assembly tests cover final status derivation (eligible/not_eligible/needs_review/conditional/empty), severity priority (blocking > review > conditional), advisory non-downgrade, summary counters (matchedRulesCount, failedGroupsCount, conditionalGroupsCount), and trace preservation. Pure input fixtures, no mocks. No production code changes.
+
+---
+
+## Decision 052
+
+**Title:** Direct-evaluation primary-reason renderer integration test baseline accepted
+**Status:** Final
+**Decision:** 7 primary-reason renderer tests cover all 5 supported primaryReasonKey → Arabic mappings, unknown key throw behavior, and return shape (3 properties). Pure input fixtures, no mocks. No production code changes.
+
+---
+
+## Decision 053
+
+**Title:** Direct-evaluation next-step renderer integration test baseline accepted
+**Status:** Final
+**Decision:** 7 next-step renderer tests cover all 5 supported primaryReasonKey → Arabic next-step mappings, unknown key throw behavior, and return shape (3 properties). Pure input fixtures, no mocks. No production code changes.
+
+---
+
+## Decision 054
+
+**Title:** Direct-evaluation advisory-notes renderer integration test baseline accepted
+**Status:** Final
+**Decision:** 10 advisory-notes renderer tests cover advisory failed note, skipped group note, both notes in order, deduplication, return shape (3 properties), empty groups, non-advisory severity exclusion. Pure input fixtures, no mocks. No production code changes.
