@@ -52,7 +52,7 @@ unless explicitly requested.
 
 When asked to implement something:
 
-- First propose a short plan
+- Do not plan unless explicitly asked — execute directly within the approved task boundary
 - State what files you will touch
 - State what you will NOT touch
 - Keep changes narrow
