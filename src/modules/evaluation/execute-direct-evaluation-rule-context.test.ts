@@ -4,7 +4,7 @@
  * Tests the executor's rule dispatch, group outcome derivation,
  * British/non-British narrowing, and unsupported rule-type handling.
  *
- * Mocks only: evaluateMinimumSubjectCountRule.
+ * Mocks only: evaluateMinimumSubjectCountRule, evaluateRequiredSubjectExistsRule.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -13,10 +13,16 @@ vi.mock("./evaluate-minimum-subject-count-rule", () => ({
   evaluateMinimumSubjectCountRule: vi.fn(),
 }));
 
+vi.mock("./evaluate-required-subject-exists-rule", () => ({
+  evaluateRequiredSubjectExistsRule: vi.fn(),
+}));
+
 import { executeDirectEvaluationRuleContext } from "./execute-direct-evaluation-rule-context";
 import { evaluateMinimumSubjectCountRule } from "./evaluate-minimum-subject-count-rule";
+import { evaluateRequiredSubjectExistsRule } from "./evaluate-required-subject-exists-rule";
 
 const mockEvalRule = vi.mocked(evaluateMinimumSubjectCountRule);
+const mockEvalRequiredSubject = vi.mocked(evaluateRequiredSubjectExistsRule);
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -88,6 +94,7 @@ function makeResolvedContext(groups: Array<{
 describe("executeDirectEvaluationRuleContext", () => {
   beforeEach(() => {
     mockEvalRule.mockReset();
+    mockEvalRequiredSubject.mockReset();
   });
 
   // -----------------------------------------------------------------------
@@ -350,5 +357,90 @@ describe("executeDirectEvaluationRuleContext", () => {
     expect(group.ruleGroupId).toBe("rg-1");
     expect(group.groupSeverity).toBe("conditional");
     expect(group.groupEvaluationMode).toBe("any_of");
+  });
+
+  // -----------------------------------------------------------------------
+  // Supported: required_subject_exists with British input
+  // -----------------------------------------------------------------------
+
+  it("evaluates required_subject_exists as passed for British input", () => {
+    mockEvalRequiredSubject.mockReturnValue({
+      outcome: "passed",
+      matchedSubjectName: "mathematics",
+      requiredSubjectNames: ["mathematics"],
+    });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "required_subject_exists", ruleConfig: { subjectNamesNormalized: ["mathematics"] }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(mockEvalRequiredSubject).toHaveBeenCalledOnce();
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("passed");
+    expect(result.groupExecutions[0].ruleExecutions[0].matchedSubjectName).toBe("mathematics");
+    expect(result.groupExecutions[0].ruleExecutions[0].requiredSubjectNames).toEqual(["mathematics"]);
+    expect(result.groupExecutions[0].groupOutcome).toBe("passed");
+  });
+
+  it("evaluates required_subject_exists as failed for British input", () => {
+    mockEvalRequiredSubject.mockReturnValue({
+      outcome: "failed",
+      matchedSubjectName: null,
+      requiredSubjectNames: ["mathematics"],
+    });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "required_subject_exists", ruleConfig: { subjectNamesNormalized: ["mathematics"] }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("failed");
+    expect(result.groupExecutions[0].ruleExecutions[0].matchedSubjectName).toBeNull();
+    expect(result.groupExecutions[0].groupOutcome).toBe("failed");
+  });
+
+  // -----------------------------------------------------------------------
+  // required_subject_exists skipped for non-British input
+  // -----------------------------------------------------------------------
+
+  it("skips required_subject_exists for simple-form input", () => {
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeSimpleFormPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "required_subject_exists", ruleConfig: { subjectNamesNormalized: ["mathematics"] }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(mockEvalRequiredSubject).not.toHaveBeenCalled();
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("skipped");
+    expect(result.groupExecutions[0].groupOutcome).toBe("skipped");
   });
 });
