@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import { assembleDirectEvaluationResult } from "./assemble-direct-evaluation-result";
-import type { DirectEvaluationRuleGroupExecution } from "@/types/direct-evaluation-execution";
+import type { DirectEvaluationRuleGroupExecution, DirectEvaluationRuleExecutionOutcome } from "@/types/direct-evaluation-execution";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -16,8 +16,8 @@ import type { DirectEvaluationRuleGroupExecution } from "@/types/direct-evaluati
 function makeGroup(overrides: {
   ruleGroupId?: string;
   groupSeverity: string;
-  groupOutcome: string;
-  ruleExecutions?: Array<{ ruleId: string; ruleTypeKey: string; outcome: string }>;
+  groupOutcome: DirectEvaluationRuleExecutionOutcome;
+  ruleExecutions?: Array<{ ruleId: string; ruleTypeKey: string; outcome: DirectEvaluationRuleExecutionOutcome }>;
 }): DirectEvaluationRuleGroupExecution {
   return {
     ruleGroupId: overrides.ruleGroupId ?? "rg-1",

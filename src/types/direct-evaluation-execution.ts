@@ -18,6 +18,13 @@ export interface MinimumSubjectCountRuleExecutionResult {
   matchedSubjects: readonly NormalizedBritishSubjectRecord[];
 }
 
+/** Detailed result of a required_subject_exists rule execution. */
+export interface RequiredSubjectExistsRuleExecutionResult {
+  outcome: DirectEvaluationRuleExecutionOutcome;
+  matchedSubjectName: string | null;
+  requiredSubjectNames: readonly string[];
+}
+
 /** Trace entry for one executed rule within a group. */
 export interface DirectEvaluationRuleExecution {
   ruleId: string;
@@ -25,6 +32,8 @@ export interface DirectEvaluationRuleExecution {
   outcome: DirectEvaluationRuleExecutionOutcome;
   matchedCount?: number;
   requiredCount?: number;
+  matchedSubjectName?: string | null;
+  requiredSubjectNames?: readonly string[];
 }
 
 /** Trace entry for one executed rule group. */

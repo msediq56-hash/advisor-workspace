@@ -51,7 +51,16 @@ const MOCK_EVALUATION_INPUT = {
   family: "british_curriculum" as const,
   offeringId: "offering-1",
   qualificationTypeKey: "british_a_level",
-  payload: { header: {}, subjects: [] },
+  payload: {
+    header: {
+      countryId: "c-1",
+      notesAr: null,
+      curriculumLabel: null,
+      graduationYear: null,
+      headerNotesAr: null,
+    },
+    subjects: [],
+  },
 };
 
 function makeRuntimeResult(overrides?: {

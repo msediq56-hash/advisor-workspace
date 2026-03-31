@@ -58,6 +58,7 @@ function makeSimpleFormPrepared() {
 
 function makeResolvedContext(groups: Array<{
   ruleGroupId: string;
+  groupKey?: string;
   groupSeverity: string;
   groupEvaluationMode: string;
   orderIndex: number;
@@ -76,7 +77,7 @@ function makeResolvedContext(groups: Array<{
     normalizedProfile: {} as never,
     status: "supported" as const,
     resolvedRuleSet: { ruleSetId: "rs-1", ruleSetVersionId: "rsv-1", targetScope: "offering", qualificationTypeId: "qt-1" },
-    ruleGroups: groups,
+    ruleGroups: groups.map((g) => ({ groupKey: "test-group", ...g })),
   };
 }
 

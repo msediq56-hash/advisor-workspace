@@ -32,7 +32,16 @@ const BRITISH_INPUT = {
   family: "british_curriculum" as const,
   offeringId: "off-1",
   qualificationTypeKey: "british_a_level",
-  payload: { header: {}, subjects: [] },
+  payload: {
+    header: {
+      countryId: "c-1",
+      notesAr: null,
+      curriculumLabel: null,
+      graduationYear: null,
+      headerNotesAr: null,
+    },
+    subjects: [],
+  },
   organizationId: "org-1",
   allowedRoles: ["owner" as const],
 };
