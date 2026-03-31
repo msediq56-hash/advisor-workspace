@@ -433,3 +433,19 @@
 **Title:** Direct-evaluation advisory-notes renderer integration test baseline accepted
 **Status:** Final
 **Decision:** 10 advisory-notes renderer tests cover advisory failed note, skipped group note, both notes in order, deduplication, return shape (3 properties), empty groups, non-advisory severity exclusion. Pure input fixtures, no mocks. No production code changes.
+
+---
+
+## Decision 055
+
+**Title:** `required_subject_exists` evaluator baseline accepted
+**Status:** Final
+**Decision:** A narrow British-only `required_subject_exists` evaluator was added (`evaluate-required-subject-exists-rule.ts`). It checks whether at least one normalized British subject record matches any of the configured required subject names using exact normalized string comparison (trim + lowercase). Non-British prepared input produces a `skipped` trace entry in the executor. Execution trace types were extended with `RequiredSubjectExistsRuleExecutionResult` and optional `matchedSubjectName`/`requiredSubjectNames` fields on `DirectEvaluationRuleExecution`. The executor (`execute-direct-evaluation-rule-context.ts`) was extended with a `required_subject_exists` dispatch branch. No fuzzy matching, synonym expansion, subject-family taxonomy, grade thresholds, or deduplication policy. No assembly, renderer, persistence, workflow, or route changes.
+
+---
+
+## Decision 056
+
+**Title:** `required_subject_exists` verification baseline accepted
+**Status:** Final
+**Decision:** Dedicated pure evaluator tests were added (`evaluate-required-subject-exists-rule.test.ts`, 14 tests) covering pass/fail matching, multi-name matching, case-insensitive normalization, whitespace trimming, payload field verification, invalid config rejection, and wrong ruleTypeKey guard. Executor tests (`execute-direct-evaluation-rule-context.test.ts`) were extended with 3 new tests for British pass/fail and non-British skip of the new rule type (total 13 executor tests). Total project test count: 150 tests across 13 test files. No production behavior changes. No broader test framework expansion.
