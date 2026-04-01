@@ -96,8 +96,8 @@ export async function runAndPersistDirectEvaluation(params: {
 /**
  * Map execution group traces into flat persistence trace rows.
  * Sources `explanation_ar` from the dedicated trace explanation renderer
- * for supported rule types. Handles skipped unsupported rule types with
- * a fixed compatibility string. Throws on unsupported non-skipped traces.
+ * for supported rule types. Uses a fixed compatibility string for
+ * unsupported rule types regardless of outcome.
  */
 function mapRuleTraces(
   ruleSetVersionId: string | null,
@@ -129,20 +129,21 @@ function mapRuleTraces(
   return traces;
 }
 
-const UNSUPPORTED_SKIPPED_EXPLANATION_AR =
+const UNSUPPORTED_EXPLANATION_AR =
   "تم تخطي القاعدة — نوع القاعدة غير مدعوم حاليًا في شرح التتبع.";
 
 /**
  * Resolve explanation_ar for one rule trace.
  * - Supported rule types: delegate to dedicated renderer.
- * - Unsupported + skipped: fixed compatibility string.
- * - Unsupported + non-skipped: throw.
+ * - Unsupported rule types (any outcome): fixed compatibility string.
  */
 function resolveTraceExplanationAr(rule: {
   ruleTypeKey: string;
   outcome: string;
   matchedCount?: number;
   requiredCount?: number;
+  matchedSubjectName?: string | null;
+  requiredSubjectNames?: readonly string[];
 }): string {
   if (rule.ruleTypeKey === "minimum_subject_count") {
     return renderDirectEvaluationRuleTraceExplanation({
@@ -153,11 +154,14 @@ function resolveTraceExplanationAr(rule: {
     }).explanationAr;
   }
 
-  if (rule.outcome === "skipped") {
-    return UNSUPPORTED_SKIPPED_EXPLANATION_AR;
+  if (rule.ruleTypeKey === "required_subject_exists") {
+    return renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: rule.ruleTypeKey,
+      outcome: rule.outcome as "passed" | "failed" | "skipped",
+      matchedSubjectName: rule.matchedSubjectName,
+      requiredSubjectNames: rule.requiredSubjectNames,
+    }).explanationAr;
   }
 
-  throw new Error(
-    `Cannot persist trace explanation for unsupported rule type "${rule.ruleTypeKey}" with non-skipped outcome "${rule.outcome}".`
-  );
+  return UNSUPPORTED_EXPLANATION_AR;
 }

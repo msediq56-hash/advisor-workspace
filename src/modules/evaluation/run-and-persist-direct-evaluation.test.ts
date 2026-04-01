@@ -300,10 +300,84 @@ describe("runAndPersistDirectEvaluation", () => {
   });
 
   // -------------------------------------------------------------------------
-  // Trace explanation: unsupported non-skipped throws
+  // Trace explanation: required_subject_exists passed
   // -------------------------------------------------------------------------
 
-  it("throws on unsupported non-skipped traces", async () => {
+  it("sources explanation_ar from dedicated renderer for required_subject_exists passed traces", async () => {
+    const groupExecutions = [
+      {
+        ruleGroupId: "rg-1",
+        groupSeverity: "blocking",
+        groupEvaluationMode: "all_required",
+        groupOutcome: "passed",
+        ruleExecutions: [
+          { ruleId: "r-1", ruleTypeKey: "required_subject_exists", outcome: "passed", matchedSubjectName: "mathematics", requiredSubjectNames: ["mathematics"] },
+        ],
+      },
+    ];
+
+    mockRun.mockResolvedValue(makeRuntimeResult({ groupExecutions }) as never);
+    mockPersist.mockResolvedValue(MOCK_PERSIST_RESULT);
+    mockRenderTrace.mockReturnValue({ explanationAr: "تم العثور على المادة المطلوبة (mathematics)." });
+
+    await runAndPersistDirectEvaluation({
+      supabase: MOCK_SUPABASE,
+      input: { evaluation: MOCK_EVALUATION_INPUT, persistenceMetadata: MOCK_METADATA },
+    });
+
+    expect(mockRenderTrace).toHaveBeenCalledWith({
+      ruleTypeKey: "required_subject_exists",
+      outcome: "passed",
+      matchedSubjectName: "mathematics",
+      requiredSubjectNames: ["mathematics"],
+    });
+
+    const persistCall = mockPersist.mock.calls[0][0];
+    expect(persistCall.input.ruleTraces[0].explanation_ar).toBe("تم العثور على المادة المطلوبة (mathematics).");
+  });
+
+  // -------------------------------------------------------------------------
+  // Trace explanation: required_subject_exists failed
+  // -------------------------------------------------------------------------
+
+  it("sources explanation_ar from dedicated renderer for required_subject_exists failed traces", async () => {
+    const groupExecutions = [
+      {
+        ruleGroupId: "rg-1",
+        groupSeverity: "blocking",
+        groupEvaluationMode: "all_required",
+        groupOutcome: "failed",
+        ruleExecutions: [
+          { ruleId: "r-1", ruleTypeKey: "required_subject_exists", outcome: "failed", matchedSubjectName: null, requiredSubjectNames: ["mathematics"] },
+        ],
+      },
+    ];
+
+    mockRun.mockResolvedValue(makeRuntimeResult({ groupExecutions }) as never);
+    mockPersist.mockResolvedValue(MOCK_PERSIST_RESULT);
+    mockRenderTrace.mockReturnValue({ explanationAr: "لم يتم العثور على المادة المطلوبة: mathematics." });
+
+    await runAndPersistDirectEvaluation({
+      supabase: MOCK_SUPABASE,
+      input: { evaluation: MOCK_EVALUATION_INPUT, persistenceMetadata: MOCK_METADATA },
+    });
+
+    expect(mockRenderTrace).toHaveBeenCalledWith({
+      ruleTypeKey: "required_subject_exists",
+      outcome: "failed",
+      matchedSubjectName: null,
+      requiredSubjectNames: ["mathematics"],
+    });
+
+    const persistCall = mockPersist.mock.calls[0][0];
+    expect(persistCall.input.ruleTraces[0].explanation_ar).toBe("لم يتم العثور على المادة المطلوبة: mathematics.");
+  });
+
+  // -------------------------------------------------------------------------
+  // Trace explanation: unsupported non-skipped uses compatibility string
+  // -------------------------------------------------------------------------
+
+  it("uses compatibility string for unsupported non-skipped traces instead of throwing", async () => {
     const groupExecutions = [
       {
         ruleGroupId: "rg-1",
@@ -319,12 +393,19 @@ describe("runAndPersistDirectEvaluation", () => {
     mockRun.mockResolvedValue(makeRuntimeResult({ groupExecutions }) as never);
     mockPersist.mockResolvedValue(MOCK_PERSIST_RESULT);
 
-    await expect(
-      runAndPersistDirectEvaluation({
-        supabase: MOCK_SUPABASE,
-        input: { evaluation: MOCK_EVALUATION_INPUT, persistenceMetadata: MOCK_METADATA },
-      })
-    ).rejects.toThrow("Cannot persist trace explanation for unsupported rule type");
+    const result = await runAndPersistDirectEvaluation({
+      supabase: MOCK_SUPABASE,
+      input: { evaluation: MOCK_EVALUATION_INPUT, persistenceMetadata: MOCK_METADATA },
+    });
+
+    expect(mockRenderTrace).not.toHaveBeenCalled();
+
+    const persistCall = mockPersist.mock.calls[0][0];
+    expect(persistCall.input.ruleTraces[0].explanation_ar).toBe(
+      "تم تخطي القاعدة — نوع القاعدة غير مدعوم حاليًا في شرح التتبع."
+    );
+
+    expect(result.persistence).toBe(MOCK_PERSIST_RESULT);
   });
 
   // -------------------------------------------------------------------------

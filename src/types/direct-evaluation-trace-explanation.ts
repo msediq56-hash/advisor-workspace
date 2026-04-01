@@ -14,6 +14,8 @@ export interface RenderDirectEvaluationRuleTraceExplanationInput {
   outcome: DirectEvaluationRuleExecutionOutcome;
   matchedCount?: number;
   requiredCount?: number;
+  matchedSubjectName?: string | null;
+  requiredSubjectNames?: readonly string[];
 }
 
 /** Result of rendering one rule trace Arabic explanation. */

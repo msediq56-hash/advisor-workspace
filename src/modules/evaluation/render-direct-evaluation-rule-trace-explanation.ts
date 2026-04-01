@@ -5,9 +5,9 @@
  * Consumes already-produced execution trace data only.
  * Does not re-execute rules, re-assemble results, or write persistence rows.
  *
- * Supports only the currently approved execution baseline:
- * - minimum_subject_count
- * - outcomes: passed, failed, skipped
+ * Supports:
+ * - minimum_subject_count (passed, failed, skipped)
+ * - required_subject_exists (passed, failed, skipped)
  *
  * Server-side only — do not import from client components.
  */
@@ -25,13 +25,26 @@ import type {
 export function renderDirectEvaluationRuleTraceExplanation(
   input: RenderDirectEvaluationRuleTraceExplanationInput
 ): RenderDirectEvaluationRuleTraceExplanationResult {
-  if (input.ruleTypeKey !== "minimum_subject_count") {
-    throw new Error(
-      `Unsupported rule type for trace explanation: "${input.ruleTypeKey}". ` +
-      `Only "minimum_subject_count" is supported in the current baseline.`
-    );
+  switch (input.ruleTypeKey) {
+    case "minimum_subject_count":
+      return renderMinimumSubjectCount(input);
+    case "required_subject_exists":
+      return renderRequiredSubjectExists(input);
+    default:
+      throw new Error(
+        `Unsupported rule type for trace explanation: "${input.ruleTypeKey}". ` +
+        `Only "minimum_subject_count" and "required_subject_exists" are supported in the current baseline.`
+      );
   }
+}
 
+// ---------------------------------------------------------------------------
+// minimum_subject_count
+// ---------------------------------------------------------------------------
+
+function renderMinimumSubjectCount(
+  input: RenderDirectEvaluationRuleTraceExplanationInput
+): RenderDirectEvaluationRuleTraceExplanationResult {
   if (input.outcome === "skipped") {
     return {
       explanationAr: "تم تخطي قاعدة الحد الأدنى لعدد المواد — لم تُنفَّذ في النسخة الحالية.",
@@ -61,5 +74,41 @@ export function renderDirectEvaluationRuleTraceExplanation(
 
   throw new Error(
     `Unsupported outcome "${input.outcome}" for minimum_subject_count trace explanation.`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// required_subject_exists
+// ---------------------------------------------------------------------------
+
+function renderRequiredSubjectExists(
+  input: RenderDirectEvaluationRuleTraceExplanationInput
+): RenderDirectEvaluationRuleTraceExplanationResult {
+  if (input.outcome === "skipped") {
+    return {
+      explanationAr: "تم تخطي قاعدة وجود المادة المطلوبة — لم تُنفَّذ في النسخة الحالية.",
+    };
+  }
+
+  if (input.outcome === "passed") {
+    const subjectPart = input.matchedSubjectName
+      ? ` (${input.matchedSubjectName})`
+      : "";
+    return {
+      explanationAr: `تم العثور على المادة المطلوبة${subjectPart}.`,
+    };
+  }
+
+  if (input.outcome === "failed") {
+    const namesList = input.requiredSubjectNames && input.requiredSubjectNames.length > 0
+      ? `: ${input.requiredSubjectNames.join("، ")}`
+      : "";
+    return {
+      explanationAr: `لم يتم العثور على المادة المطلوبة${namesList}.`,
+    };
+  }
+
+  throw new Error(
+    `Unsupported outcome "${input.outcome}" for required_subject_exists trace explanation.`
   );
 }
