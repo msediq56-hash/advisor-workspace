@@ -89,12 +89,12 @@ Implementation should respect:
 
 Always read these before major implementation:
 
+- `docs/handoff.md`
+- `docs/decisions-log.md`
 - `docs/project-definition.md`
 - `docs/system-architecture-v1.1.md`
 - `docs/database-design-v1.1.md`
 - `docs/schema-map-v1.md`
-- `docs/current-phase.md`
-- `docs/handoff.md`
 
 ## Output expectations
 
