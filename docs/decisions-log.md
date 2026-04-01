@@ -449,3 +449,11 @@
 **Title:** `required_subject_exists` verification baseline accepted
 **Status:** Final
 **Decision:** Dedicated pure evaluator tests were added (`evaluate-required-subject-exists-rule.test.ts`, 14 tests) covering pass/fail matching, multi-name matching, case-insensitive normalization, whitespace trimming, payload field verification, invalid config rejection, and wrong ruleTypeKey guard. Executor tests (`execute-direct-evaluation-rule-context.test.ts`) were extended with 3 new tests for British pass/fail and non-British skip of the new rule type (total 13 executor tests). Total project test count: 150 tests across 13 test files. No production behavior changes. No broader test framework expansion.
+
+---
+
+## Decision 057
+
+**Title:** Trace explanation hardening — `required_subject_exists` renderer support and workflow fallback policy change accepted
+**Status:** Final
+**Decision:** The dedicated trace-level Arabic explanation renderer (`render-direct-evaluation-rule-trace-explanation.ts`) now supports `required_subject_exists` in addition to `minimum_subject_count`, with dedicated Arabic rendering for passed (subject found, includes matched name), failed (subject not found, lists required names), and skipped outcomes. The trace explanation input type was extended with optional `matchedSubjectName` and `requiredSubjectNames` fields. The run-and-persist workflow (`run-and-persist-direct-evaluation.ts`) fallback policy changed from "unsupported skipped → compatibility string, unsupported non-skipped → throw" to "unsupported trace explanation rule types → compatibility string regardless of outcome". Both `minimum_subject_count` and `required_subject_exists` remain on the dedicated renderer path. Workflow tests were updated: added `required_subject_exists` passed/failed trace explanation sourcing tests and unsupported non-skipped compatibility fallback test; removed the previous unsupported non-skipped throw test. Total project test count: 152 tests across 13 test files. No execution changes. No result assembly changes. No persistence schema changes. No route contract changes. No broader evaluator support added.

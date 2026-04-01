@@ -18,7 +18,7 @@ Phase 6 narrow subject-based evaluator extensions are implemented (`minimum_subj
 Phase 5 Result assembly baseline is implemented.
 Phase 5 Explanation rendering baseline is implemented (primary reason, next step, advisory notes, trace-level rule explanations — all Arabic).
 
-British, simple-form, and generic multi-family direct-evaluation in-memory orchestration baselines are implemented. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first direct-evaluation POST route handler are implemented. Route layer is hardened (request/response/error-response schemas, narrow error classification). Verification baseline is complete across all current runtime layers (150 tests across 13 test files via Vitest). No business UI. No import pipeline. No admin UI. No CRM features.
+British, simple-form, and generic multi-family direct-evaluation in-memory orchestration baselines are implemented. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first direct-evaluation POST route handler are implemented. Route layer is hardened (request/response/error-response schemas, narrow error classification). Verification baseline is complete across all current runtime layers (152 tests across 13 test files via Vitest). No business UI. No import pipeline. No admin UI. No CRM features.
 
 ## Authoritative references
 
@@ -136,8 +136,8 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 - `src/modules/evaluation/render-direct-evaluation-primary-reason.ts` — Arabic primary reason from primaryReasonKey
 - `src/modules/evaluation/render-direct-evaluation-next-step.ts` — Arabic next step from primaryReasonKey
 - `src/modules/evaluation/render-direct-evaluation-advisory-notes.ts` — Arabic advisory notes from group outcomes
-- `src/types/direct-evaluation-trace-explanation.ts` — trace-level explanation input/result types
-- `src/modules/evaluation/render-direct-evaluation-rule-trace-explanation.ts` — dedicated pure Arabic trace explanation renderer (minimum_subject_count only; passed/failed/skipped; throws on unsupported types or missing counts)
+- `src/types/direct-evaluation-trace-explanation.ts` — trace-level explanation input/result types (includes optional `matchedSubjectName`, `requiredSubjectNames` for required_subject_exists support)
+- `src/modules/evaluation/render-direct-evaluation-rule-trace-explanation.ts` — dedicated pure Arabic trace explanation renderer (`minimum_subject_count` and `required_subject_exists`; passed/failed/skipped; throws on unsupported types or missing required data)
 
 ### Phase 5 Orchestration baselines
 
@@ -154,7 +154,7 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 ### Phase 5 Run-and-persist workflow baseline
 
 - `src/types/direct-evaluation-run-and-persist.ts` — workflow input/result types and caller-owned persistence metadata
-- `src/modules/evaluation/run-and-persist-direct-evaluation.ts` — service-layer composition: generic runtime + trace explanation renderer + persistence write service; caller-owned metadata explicit; unsupported skipped traces use fixed compatibility explanation; unsupported non-skipped traces throw; no UI, no routes, no API handlers, no server actions
+- `src/modules/evaluation/run-and-persist-direct-evaluation.ts` — service-layer composition: generic runtime + trace explanation renderer + persistence write service; caller-owned metadata explicit; `minimum_subject_count` and `required_subject_exists` use dedicated renderer; unsupported trace explanation rule types use fixed compatibility fallback regardless of outcome; no UI, no routes, no API handlers, no server actions
 
 ### Phase 5 Server-side invocation boundary
 
@@ -178,7 +178,7 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 - `vitest.config.ts` — Vitest test framework bootstrap (node environment, @/ path alias)
 - `src/app/api/direct-evaluation/route.test.ts` — 14 route integration tests (success, 400 invalid JSON/shape, 401/409/403/500 error classification)
 - `src/modules/evaluation/invoke-direct-evaluation-workflow.test.ts` — 12 invocation boundary tests (access passthrough, metadata derivation, delegation, failure passthrough)
-- `src/modules/evaluation/run-and-persist-direct-evaluation.test.ts` — 11 workflow tests (delegation, metadata passthrough, trace explanation sourcing, failure passthrough)
+- `src/modules/evaluation/run-and-persist-direct-evaluation.test.ts` — 13 workflow tests (delegation, metadata passthrough, trace explanation sourcing for minimum_subject_count and required_subject_exists passed/failed, unsupported non-skipped compatibility fallback, unsupported skipped compatibility, null rule set, failure passthrough)
 - `src/modules/evaluation/persist-direct-evaluation-run.test.ts` — 9 persistence tests (insert ordering, field mapping, linkage, zero traces, failure passthrough)
 - `src/modules/evaluation/run-direct-evaluation.test.ts` — 14 generic orchestration tests (family routing, param passthrough, error passthrough)
 - `src/modules/evaluation/run-british-direct-evaluation.test.ts` — 13 British orchestration tests (composition sequence, result shape, failure passthrough for all 7 stages)
@@ -195,14 +195,14 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 - No broader direct-evaluation API surface beyond the first POST route baseline
 - No business UI
 - No broader evaluator support beyond the current narrow subject-based baseline (`minimum_subject_count`, `required_subject_exists`)
-- No broader trace explanation rendering across other rule types (trace-level rendering limited to `minimum_subject_count`; workflow uses fixed compatibility string for unsupported skipped traces only)
+- No broader dedicated trace explanation rendering beyond `minimum_subject_count` and `required_subject_exists` (unsupported trace explanation rule types use a fixed compatibility fallback in workflow regardless of outcome)
 - No import pipeline (tables or code)
 - No admin UI
 - No CRM features
 
 ## Current recommended next step
 
-Verification baseline is complete across all current runtime layers (150 tests across 13 test files). Next narrow execution slice: extend evaluator support with the next British subject-based rule type (e.g. `minimum_subject_grade` evaluator baseline), or extend trace-level explanation rendering to cover `required_subject_exists`.
+Verification baseline is complete across all current runtime layers (152 tests across 13 test files). Next narrow execution slice: extend evaluator support with the next British subject-based rule type (e.g. `minimum_subject_grade` evaluator baseline).
 
 ## Critical constraints to remember
 
@@ -215,7 +215,7 @@ Verification baseline is complete across all current runtime layers (150 tests a
 
 ## Last architectural state
 
-Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes, trace-level rule explanations). Phase 6 adds `required_subject_exists` as a narrow British-only evaluator (exact normalized subject name matching only; no fuzzy/synonym/taxonomy logic; non-British input remains skipped). British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; both `minimum_subject_count` and `required_subject_exists` are British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first POST route handler baseline exist. Route layer is hardened at request/response/error-response level with narrow local error classification. Verification baseline covers route, invocation boundary, workflow, persistence, generic orchestration, British orchestration, simple-form orchestration, execution engine, result assembly, all three explanation renderers, and the pure `required_subject_exists` evaluator (150 tests across 13 test files via Vitest). Broader evaluator support, broader trace-level explanation rendering across other rule types, business UI, and broader API surface do not exist yet.
+Migration 1 core schema and 6 RLS migrations (00002–00007) are runtime-validated on Supabase. Phase 1 smoke test passed (25/25). Phase 2 Catalog Core provides read-only activated catalog browse, selection, and target context. Phase 3 provides simple-form qualification preparation end-to-end. Phase 4 provides British specialized preparation end-to-end, British count-based rules support baseline, and execution-ready published rule context resolution with ordered groups/rules. Phase 5 provides minimum_subject_count execution baseline, final status result assembly, and Arabic explanation rendering (primary reason, next step, advisory notes, trace-level rule explanations). Phase 6 adds `required_subject_exists` as a narrow British-only evaluator (exact normalized subject name matching only; no fuzzy/synonym/taxonomy logic; non-British input remains skipped). Trace-level explanation renderer now supports both `minimum_subject_count` and `required_subject_exists` with dedicated Arabic rendering for passed/failed/skipped outcomes. Workflow no longer throws on unsupported non-skipped trace explanation rule types — it falls back to a fixed compatibility string for any unsupported rule type regardless of outcome. British and simple-form direct-evaluation in-memory orchestration baselines exist. Executor prepared-input contract is widened for both families; both `minimum_subject_count` and `required_subject_exists` are British-only. Generic multi-family direct-evaluation orchestration baseline exists as a thin in-memory router. Direct-evaluation persistence write baseline, run-and-persist workflow baseline, first server-side invocation boundary, and first POST route handler baseline exist. Route layer is hardened at request/response/error-response level with narrow local error classification. Verification baseline covers route, invocation boundary, workflow, persistence, generic orchestration, British orchestration, simple-form orchestration, execution engine, result assembly, all three explanation renderers, and the pure `required_subject_exists` evaluator (152 tests across 13 test files via Vitest). Broader evaluator support, broader dedicated trace-level explanation rendering beyond the current two rule types, business UI, and broader API surface do not exist yet.
 
 ## If this project is reopened in a new chat
 
