@@ -473,3 +473,11 @@
 **Title:** Repair — `any_of` group evaluation mode now respected in group outcome derivation
 **Status:** Final
 **Decision:** The group outcome derivation function (`deriveGroupOutcome` in `execute-direct-evaluation-rule-context.ts`) was ignoring the `groupEvaluationMode` parameter entirely, treating all groups as `all_required`. For `any_of` groups, the correct semantics are: passed if at least one rule passes (regardless of other failures), failed only if no rule passes and at least one fails, skipped if all rules are skipped. Fixed by passing `groupEvaluationMode` as a parameter to `deriveGroupOutcome` and adding `any_of`-specific logic while keeping `all_required`/`advisory_only` logic unchanged. Four new execution engine tests added (any_of pass+fail, any_of all-fail, any_of all-skipped, any_of pass+skipped). Total project test count after this repair: 158 tests across 13 test files.
+
+---
+
+## Decision 060
+
+**Title:** Repair — `sourceProfileId` organization ownership guard at invocation boundary
+**Status:** Final
+**Decision:** The server-side invocation boundary (`invoke-direct-evaluation-workflow.ts`) was passing `sourceProfileId` through to the run-and-persist workflow without verifying that the referenced student profile exists or belongs to the resolved organization. A profile from another organization or a nonexistent profile could be linked to an evaluation run. Fixed by adding an ownership guard: when `sourceProfileId` is non-null, the invocation boundary queries `student_profiles` by id (using the admin client already created at the boundary) and verifies that the row exists and that `student_profiles.organization_id` matches `access.orgContext.organizationId`. Missing profiles and cross-organization profiles are rejected before workflow delegation. `sourceProfileId = null` remains allowed and unchanged. The route error classifier (`route.ts`) was minimally extended — two new message prefixes (`"Source profile not found:"`, `"Source profile access denied:"`) were added to the existing 403 `access_denied` classification path; no new error codes or broader route contract changes. Five new invocation boundary tests added (null skips lookup, matching-org delegates, different-org rejects, missing profile rejects, lookup error rejects). Total project test count after this repair: 163 tests across 13 test files.
