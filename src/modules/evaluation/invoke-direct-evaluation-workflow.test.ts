@@ -56,7 +56,11 @@ const MOCK_ACCESS = {
   },
 };
 
-const MOCK_ADMIN_CLIENT = { __mock: "admin-client" };
+const mockMaybeSingle = vi.fn();
+const mockEq = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
+const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
+const mockFrom = vi.fn().mockReturnValue({ select: mockSelect });
+const MOCK_ADMIN_CLIENT = { __mock: "admin-client", from: mockFrom };
 
 const MOCK_WORKFLOW_RESULT = {
   runtime: { family: "british_curriculum" as const } as never,
@@ -95,10 +99,20 @@ describe("invokeDirectEvaluationWorkflow", () => {
     mockRequireActorAccess.mockReset();
     mockCreateAdminClient.mockReset();
     mockRunAndPersist.mockReset();
+    mockFrom.mockClear();
+    mockSelect.mockClear();
+    mockEq.mockClear();
+    mockMaybeSingle.mockClear();
+
+    // Reset chain return values
+    mockEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
+    mockSelect.mockReturnValue({ eq: mockEq });
+    mockFrom.mockReturnValue({ select: mockSelect });
 
     mockRequireActorAccess.mockResolvedValue(MOCK_ACCESS);
     mockCreateAdminClient.mockReturnValue(MOCK_ADMIN_CLIENT as never);
     mockRunAndPersist.mockResolvedValue(MOCK_WORKFLOW_RESULT);
+    mockMaybeSingle.mockResolvedValue({ data: { organization_id: "org-456" }, error: null });
   });
 
   // -------------------------------------------------------------------------
@@ -232,6 +246,71 @@ describe("invokeDirectEvaluationWorkflow", () => {
     const result = await invokeDirectEvaluationWorkflow(BASE_INPUT);
 
     expect(result).toBe(MOCK_WORKFLOW_RESULT);
+  });
+
+  // -------------------------------------------------------------------------
+  // Source profile ownership guard
+  // -------------------------------------------------------------------------
+
+  it("does not look up profile when sourceProfileId is null", async () => {
+    await invokeDirectEvaluationWorkflow(BASE_INPUT);
+
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRunAndPersist).toHaveBeenCalled();
+  });
+
+  it("delegates successfully when sourceProfileId matches organization", async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { organization_id: "org-456" }, error: null });
+
+    const input = { ...BASE_INPUT, sourceProfileId: "profile-789" };
+    const result = await invokeDirectEvaluationWorkflow(input);
+
+    expect(mockFrom).toHaveBeenCalledWith("student_profiles");
+    expect(mockSelect).toHaveBeenCalledWith("organization_id");
+    expect(mockEq).toHaveBeenCalledWith("id", "profile-789");
+    expect(mockRunAndPersist).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          persistenceMetadata: expect.objectContaining({
+            sourceProfileId: "profile-789",
+          }),
+        }),
+      })
+    );
+    expect(result).toBe(MOCK_WORKFLOW_RESULT);
+  });
+
+  it("fails before workflow when sourceProfileId belongs to different organization", async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { organization_id: "org-other" }, error: null });
+
+    const input = { ...BASE_INPUT, sourceProfileId: "profile-wrong-org" };
+
+    await expect(invokeDirectEvaluationWorkflow(input)).rejects.toThrow(
+      "Source profile access denied:"
+    );
+    expect(mockRunAndPersist).not.toHaveBeenCalled();
+  });
+
+  it("fails before workflow when sourceProfileId does not exist", async () => {
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+
+    const input = { ...BASE_INPUT, sourceProfileId: "profile-nonexistent" };
+
+    await expect(invokeDirectEvaluationWorkflow(input)).rejects.toThrow(
+      "Source profile not found:"
+    );
+    expect(mockRunAndPersist).not.toHaveBeenCalled();
+  });
+
+  it("fails before workflow when profile lookup returns a database error", async () => {
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: "db connection lost" } });
+
+    const input = { ...BASE_INPUT, sourceProfileId: "profile-err" };
+
+    await expect(invokeDirectEvaluationWorkflow(input)).rejects.toThrow(
+      "Source profile lookup failed:"
+    );
+    expect(mockRunAndPersist).not.toHaveBeenCalled();
   });
 
   // -------------------------------------------------------------------------

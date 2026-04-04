@@ -24,9 +24,11 @@ import type {
  * Invoke the direct-evaluation workflow from server-side code.
  *
  * 1. Resolves the current authenticated actor and organization context
- * 2. Derives persistence metadata from the resolved context
- * 3. Calls the run-and-persist workflow with the admin Supabase client
- * 4. Returns the workflow result unchanged
+ * 2. If sourceProfileId is non-null, verifies the profile exists and
+ *    belongs to the resolved organization
+ * 3. Derives persistence metadata from the resolved context
+ * 4. Calls the run-and-persist workflow with the admin Supabase client
+ * 5. Returns the workflow result unchanged
  */
 export async function invokeDirectEvaluationWorkflow(
   input: InvokeDirectEvaluationWorkflowInput
@@ -37,9 +39,38 @@ export async function invokeDirectEvaluationWorkflow(
     allowedRoles: input.evaluation.allowedRoles,
   });
 
-  // 2. Build the run-and-persist workflow input
+  const adminClient = createAdminClient();
+
+  // 2. If sourceProfileId is provided, verify organization ownership
+  if (input.sourceProfileId != null) {
+    const { data: profile, error } = await adminClient
+      .from("student_profiles")
+      .select("organization_id")
+      .eq("id", input.sourceProfileId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(
+        `Source profile lookup failed: ${error.message}`
+      );
+    }
+
+    if (!profile) {
+      throw new Error(
+        "Source profile not found: the referenced student profile does not exist"
+      );
+    }
+
+    if (profile.organization_id !== access.orgContext.organizationId) {
+      throw new Error(
+        "Source profile access denied: the referenced student profile belongs to a different organization"
+      );
+    }
+  }
+
+  // 3. Build the run-and-persist workflow input
   const result = await runAndPersistDirectEvaluation({
-    supabase: createAdminClient(),
+    supabase: adminClient,
     input: {
       evaluation: input.evaluation,
       persistenceMetadata: {

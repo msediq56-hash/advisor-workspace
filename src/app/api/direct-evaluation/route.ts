@@ -49,10 +49,12 @@ function classifyRouteError(err: unknown): ClassifiedRouteError {
     return { status: 409, code: "org_selection_required", message };
   }
 
-  // 403 — org/membership/role access denied
+  // 403 — org/membership/role access denied, source profile ownership
   if (
     message.startsWith("Org context not resolved:") ||
-    message.startsWith("Insufficient role:")
+    message.startsWith("Insufficient role:") ||
+    message.startsWith("Source profile not found:") ||
+    message.startsWith("Source profile access denied:")
   ) {
     return { status: 403, code: "access_denied", message };
   }
