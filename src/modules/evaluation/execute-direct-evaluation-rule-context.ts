@@ -124,7 +124,7 @@ export function executeDirectEvaluationRuleContext(params: {
         ruleGroupId: group.ruleGroupId,
         groupSeverity: group.groupSeverity,
         groupEvaluationMode: group.groupEvaluationMode,
-        groupOutcome: deriveGroupOutcome(ruleExecutions),
+        groupOutcome: deriveGroupOutcome(ruleExecutions, group.groupEvaluationMode),
         ruleExecutions,
       };
     });
@@ -133,20 +133,38 @@ export function executeDirectEvaluationRuleContext(params: {
 }
 
 /**
- * Derive group outcome from individual rule executions.
- * - failed if any rule failed
- * - passed if at least one rule passed (and none failed)
- * - skipped otherwise
+ * Derive group outcome from individual rule executions and evaluation mode.
+ *
+ * all_required / advisory_only:
+ *   - failed if any effective rule failed
+ *   - passed if at least one rule passed (and none failed)
+ *   - skipped if all rules are skipped
+ *
+ * any_of:
+ *   - passed if at least one rule passed
+ *   - failed if no rule passed and at least one effective rule failed
+ *   - skipped if all rules are skipped
  */
 function deriveGroupOutcome(
-  executions: readonly DirectEvaluationRuleExecution[]
+  executions: readonly DirectEvaluationRuleExecution[],
+  groupEvaluationMode: string,
 ): DirectEvaluationRuleExecutionOutcome {
   let hasPassed = false;
+  let hasFailed = false;
 
   for (const exec of executions) {
-    if (exec.outcome === "failed") return "failed";
     if (exec.outcome === "passed") hasPassed = true;
+    if (exec.outcome === "failed") hasFailed = true;
   }
 
-  return hasPassed ? "passed" : "skipped";
+  if (groupEvaluationMode === "any_of") {
+    if (hasPassed) return "passed";
+    if (hasFailed) return "failed";
+    return "skipped";
+  }
+
+  // all_required / advisory_only
+  if (hasFailed) return "failed";
+  if (hasPassed) return "passed";
+  return "skipped";
 }

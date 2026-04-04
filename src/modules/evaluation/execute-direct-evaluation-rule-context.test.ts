@@ -281,6 +281,100 @@ describe("executeDirectEvaluationRuleContext", () => {
   });
 
   // -----------------------------------------------------------------------
+  // any_of group outcome derivation
+  // -----------------------------------------------------------------------
+
+  it("any_of group passes when one rule passes and another fails", () => {
+    mockEvalRule
+      .mockReturnValueOnce({ outcome: "passed", matchedCount: 5, requiredCount: 3, matchedSubjects: [] })
+      .mockReturnValueOnce({ outcome: "failed", matchedCount: 1, requiredCount: 3, matchedSubjects: [] });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "any_of",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 0 },
+            { ruleId: "r-2", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 1 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].groupOutcome).toBe("passed");
+  });
+
+  it("any_of group fails when all effective rule executions fail", () => {
+    mockEvalRule
+      .mockReturnValueOnce({ outcome: "failed", matchedCount: 1, requiredCount: 3, matchedSubjects: [] })
+      .mockReturnValueOnce({ outcome: "failed", matchedCount: 0, requiredCount: 3, matchedSubjects: [] });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "any_of",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 0 },
+            { ruleId: "r-2", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 1 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].groupOutcome).toBe("failed");
+  });
+
+  it("any_of group stays skipped when all rule executions are skipped", () => {
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "any_of",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "unknown_type", ruleConfig: {}, orderIndex: 0 },
+            { ruleId: "r-2", ruleTypeKey: "unknown_type", ruleConfig: {}, orderIndex: 1 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].groupOutcome).toBe("skipped");
+  });
+
+  it("any_of group passes when one rule passes and the rest are skipped", () => {
+    mockEvalRule.mockReturnValue({ outcome: "passed", matchedCount: 5, requiredCount: 3, matchedSubjects: [] });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "any_of",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_count", ruleConfig: { minimumCount: 3 }, orderIndex: 0 },
+            { ruleId: "r-2", ruleTypeKey: "unknown_type", ruleConfig: {}, orderIndex: 1 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].groupOutcome).toBe("passed");
+  });
+
+  // -----------------------------------------------------------------------
   // Empty / no-rules
   // -----------------------------------------------------------------------
 
