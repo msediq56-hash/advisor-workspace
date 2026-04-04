@@ -100,6 +100,37 @@ describe("assembleDirectEvaluationResult", () => {
     expect(result.primaryReasonKey).toBe("no_rule_groups_executed");
   });
 
+  it("returns needs_review when all groups are skipped", () => {
+    const result = assembleDirectEvaluationResult({
+      execution: {
+        groupExecutions: [
+          makeGroup({ ruleGroupId: "rg-1", groupSeverity: "blocking", groupOutcome: "skipped" }),
+          makeGroup({ ruleGroupId: "rg-2", groupSeverity: "conditional", groupOutcome: "skipped" }),
+        ],
+      },
+    });
+
+    expect(result.finalStatus).toBe("needs_review");
+    expect(result.primaryReasonKey).toBe("no_rule_groups_executed");
+    expect(result.matchedRulesCount).toBe(0);
+    expect(result.failedGroupsCount).toBe(0);
+    expect(result.conditionalGroupsCount).toBe(0);
+  });
+
+  it("returns eligible when some groups pass and some are skipped", () => {
+    const result = assembleDirectEvaluationResult({
+      execution: {
+        groupExecutions: [
+          makeGroup({ ruleGroupId: "rg-1", groupSeverity: "blocking", groupOutcome: "passed" }),
+          makeGroup({ ruleGroupId: "rg-2", groupSeverity: "blocking", groupOutcome: "skipped" }),
+        ],
+      },
+    });
+
+    expect(result.finalStatus).toBe("eligible");
+    expect(result.primaryReasonKey).toBe("all_required_groups_satisfied");
+  });
+
   // -----------------------------------------------------------------------
   // Severity priority
   // -----------------------------------------------------------------------

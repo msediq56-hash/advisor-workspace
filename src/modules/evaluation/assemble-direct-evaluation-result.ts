@@ -83,8 +83,15 @@ export function assembleDirectEvaluationResult(params: {
     finalStatus = "conditional";
     primaryReasonKey = "conditional_group_failed";
   } else {
-    finalStatus = "eligible";
-    primaryReasonKey = "all_required_groups_satisfied";
+    // Check if every group outcome is skipped — no real evaluation occurred
+    const allSkipped = groupExecutions.every((g) => g.groupOutcome === "skipped");
+    if (allSkipped) {
+      finalStatus = "needs_review";
+      primaryReasonKey = "no_rule_groups_executed";
+    } else {
+      finalStatus = "eligible";
+      primaryReasonKey = "all_required_groups_satisfied";
+    }
   }
 
   return {
