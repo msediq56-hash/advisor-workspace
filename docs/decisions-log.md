@@ -457,3 +457,19 @@
 **Title:** Trace explanation hardening — `required_subject_exists` renderer support and workflow fallback policy change accepted
 **Status:** Final
 **Decision:** The dedicated trace-level Arabic explanation renderer (`render-direct-evaluation-rule-trace-explanation.ts`) now supports `required_subject_exists` in addition to `minimum_subject_count`, with dedicated Arabic rendering for passed (subject found, includes matched name), failed (subject not found, lists required names), and skipped outcomes. The trace explanation input type was extended with optional `matchedSubjectName` and `requiredSubjectNames` fields. The run-and-persist workflow (`run-and-persist-direct-evaluation.ts`) fallback policy changed from "unsupported skipped → compatibility string, unsupported non-skipped → throw" to "unsupported trace explanation rule types → compatibility string regardless of outcome". Both `minimum_subject_count` and `required_subject_exists` remain on the dedicated renderer path. Workflow tests were updated: added `required_subject_exists` passed/failed trace explanation sourcing tests and unsupported non-skipped compatibility fallback test; removed the previous unsupported non-skipped throw test. Total project test count: 152 tests across 13 test files. No execution changes. No result assembly changes. No persistence schema changes. No route contract changes. No broader evaluator support added.
+
+---
+
+## Decision 058
+
+**Title:** Repair — all-skipped groups now return `needs_review` instead of false `eligible`
+**Status:** Final
+**Decision:** The result assembly function (`assemble-direct-evaluation-result.ts`) had a bug where groups that all returned `skipped` outcomes (no failures, no passes) would fall through to the `eligible` branch. This was incorrect — if no real evaluation occurred, the result should be `needs_review` with `no_rule_groups_executed` reason key, not false eligibility. Fixed by adding an `allSkipped` check in the else branch that reuses the existing `no_rule_groups_executed` primaryReasonKey. No renderer changes needed. Two new result assembly tests added (all-skipped returns needs_review, mixed pass+skip returns eligible). Total project test count after this repair: 154 tests across 13 test files.
+
+---
+
+## Decision 059
+
+**Title:** Repair — `any_of` group evaluation mode now respected in group outcome derivation
+**Status:** Final
+**Decision:** The group outcome derivation function (`deriveGroupOutcome` in `execute-direct-evaluation-rule-context.ts`) was ignoring the `groupEvaluationMode` parameter entirely, treating all groups as `all_required`. For `any_of` groups, the correct semantics are: passed if at least one rule passes (regardless of other failures), failed only if no rule passes and at least one fails, skipped if all rules are skipped. Fixed by passing `groupEvaluationMode` as a parameter to `deriveGroupOutcome` and adding `any_of`-specific logic while keeping `all_required`/`advisory_only` logic unchanged. Four new execution engine tests added (any_of pass+fail, any_of all-fail, any_of all-skipped, any_of pass+skipped). Total project test count after this repair: 158 tests across 13 test files.
