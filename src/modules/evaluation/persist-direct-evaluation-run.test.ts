@@ -1,10 +1,10 @@
 /**
  * Persistence write service integration test baseline.
  *
- * Tests the sequencing, insert payload mapping, and failure behavior of
+ * Tests the atomic RPC delegation, payload mapping, and failure behavior of
  * persistDirectEvaluationRun without hitting a real database.
  *
- * Mocks only the Supabase client chain used by this module.
+ * Mocks only the Supabase client rpc method used by this module.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -12,58 +12,24 @@ import { persistDirectEvaluationRun } from "./persist-direct-evaluation-run";
 import type { PersistDirectEvaluationRunInput } from "@/types/direct-evaluation-persistence";
 
 // ---------------------------------------------------------------------------
-// Supabase chain mock builder
+// Supabase RPC mock builder
 // ---------------------------------------------------------------------------
 
-interface MockInsertChain {
-  fromCalls: Array<{ table: string; insertData: unknown; options?: unknown }>;
-  runResponse: { data: unknown; error: unknown };
-  resultResponse: { data: unknown; error: unknown };
-  tracesResponse: { error: unknown; count: number | null };
-}
-
-function createMockSupabase(config: Partial<MockInsertChain> = {}) {
-  const fromCalls: MockInsertChain["fromCalls"] = [];
-  let callIndex = 0;
-
-  const runResponse = config.runResponse ?? { data: { id: "run-1" }, error: null };
-  const resultResponse = config.resultResponse ?? { data: { id: "result-1" }, error: null };
-  const tracesResponse = config.tracesResponse ?? { error: null, count: 2 };
-
-  const supabase = {
-    from: vi.fn((table: string) => {
-      const currentCall = callIndex++;
-
-      return {
-        insert: vi.fn((insertData: unknown, options?: unknown) => {
-          fromCalls.push({ table, insertData, options });
-
-          // Run insert (first call) — chain: .select().single()
-          if (currentCall === 0) {
-            return {
-              select: vi.fn(() => ({
-                single: vi.fn(() => Promise.resolve(runResponse)),
-              })),
-            };
-          }
-
-          // Result insert (second call) — chain: .select().single()
-          if (currentCall === 1) {
-            return {
-              select: vi.fn(() => ({
-                single: vi.fn(() => Promise.resolve(resultResponse)),
-              })),
-            };
-          }
-
-          // Traces insert (third call) — returns { error, count } directly
-          return Promise.resolve(tracesResponse);
-        }),
-      };
-    }),
+function createMockSupabase(config?: {
+  data?: unknown;
+  error?: { message: string } | null;
+}) {
+  const defaultData = {
+    evaluation_run_id: "run-1",
+    evaluation_result_id: "result-1",
+    persisted_rule_trace_count: 2,
   };
+  const rpcMock = vi.fn().mockResolvedValue({
+    data: config && "data" in config ? config.data : defaultData,
+    error: config?.error ?? null,
+  });
 
-  return { supabase: supabase as never, fromCalls };
+  return { supabase: { rpc: rpcMock } as never, rpcMock };
 }
 
 // ---------------------------------------------------------------------------
@@ -127,88 +93,104 @@ const BASE_INPUT: PersistDirectEvaluationRunInput = {
 
 describe("persistDirectEvaluationRun", () => {
   // -----------------------------------------------------------------------
-  // Success with traces
+  // Atomic delegation
   // -----------------------------------------------------------------------
 
-  it("inserts run, result, then traces in order", async () => {
-    const { supabase, fromCalls } = createMockSupabase();
+  it("delegates all data through a single atomic RPC call", async () => {
+    const { supabase, rpcMock } = createMockSupabase();
 
     await persistDirectEvaluationRun({ supabase, input: BASE_INPUT });
 
-    expect(fromCalls).toHaveLength(3);
-    expect(fromCalls[0].table).toBe("evaluation_runs");
-    expect(fromCalls[1].table).toBe("evaluation_results");
-    expect(fromCalls[2].table).toBe("evaluation_rule_traces");
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    expect(rpcMock).toHaveBeenCalledWith(
+      "persist_direct_evaluation_run_atomic",
+      {
+        p_run: BASE_INPUT.run,
+        p_result: BASE_INPUT.result,
+        p_traces: BASE_INPUT.ruleTraces,
+      }
+    );
   });
 
-  it("maps run insert fields correctly", async () => {
-    const { supabase, fromCalls } = createMockSupabase();
+  // -----------------------------------------------------------------------
+  // Payload mapping
+  // -----------------------------------------------------------------------
+
+  it("passes run fields through to the RPC", async () => {
+    const { supabase, rpcMock } = createMockSupabase();
 
     await persistDirectEvaluationRun({ supabase, input: BASE_INPUT });
 
-    const runData = fromCalls[0].insertData as Record<string, unknown>;
-    expect(runData.organization_id).toBe("org-1");
-    expect(runData.actor_user_id).toBe("user-1");
-    expect(runData.flow_type).toBe("direct_evaluation");
-    expect(runData.source_profile_id).toBe("profile-1");
-    expect(runData.qualification_type_id).toBe("qt-1");
+    const callArgs = rpcMock.mock.calls[0][1];
+    expect(callArgs.p_run.organization_id).toBe("org-1");
+    expect(callArgs.p_run.actor_user_id).toBe("user-1");
+    expect(callArgs.p_run.flow_type).toBe("direct_evaluation");
+    expect(callArgs.p_run.source_profile_id).toBe("profile-1");
+    expect(callArgs.p_run.qualification_type_id).toBe("qt-1");
   });
 
-  it("links result to run id", async () => {
-    const { supabase, fromCalls } = createMockSupabase({
-      runResponse: { data: { id: "run-abc" }, error: null },
-    });
+  it("passes result fields through to the RPC", async () => {
+    const { supabase, rpcMock } = createMockSupabase();
 
     await persistDirectEvaluationRun({ supabase, input: BASE_INPUT });
 
-    const resultData = fromCalls[1].insertData as Record<string, unknown>;
-    expect(resultData.evaluation_run_id).toBe("run-abc");
-    expect(resultData.program_offering_id).toBe("offering-1");
-    expect(resultData.final_status).toBe("eligible");
+    const callArgs = rpcMock.mock.calls[0][1];
+    expect(callArgs.p_result.program_offering_id).toBe("offering-1");
+    expect(callArgs.p_result.final_status).toBe("eligible");
+    expect(callArgs.p_result.primary_reason_ar).toBe("مؤهل");
+    expect(callArgs.p_result.matched_rules_count).toBe(1);
   });
 
-  it("links traces to result id", async () => {
-    const { supabase, fromCalls } = createMockSupabase({
-      resultResponse: { data: { id: "result-xyz" }, error: null },
-    });
+  it("passes trace rows through to the RPC", async () => {
+    const { supabase, rpcMock } = createMockSupabase();
 
     await persistDirectEvaluationRun({ supabase, input: BASE_INPUT });
 
-    const traceRows = fromCalls[2].insertData as Array<Record<string, unknown>>;
-    expect(traceRows).toHaveLength(2);
-    expect(traceRows[0].evaluation_result_id).toBe("result-xyz");
-    expect(traceRows[1].evaluation_result_id).toBe("result-xyz");
-    expect(traceRows[0].rule_id).toBe("r-1");
-    expect(traceRows[1].rule_id).toBe("r-2");
+    const callArgs = rpcMock.mock.calls[0][1];
+    expect(callArgs.p_traces).toHaveLength(2);
+    expect(callArgs.p_traces[0].rule_id).toBe("r-1");
+    expect(callArgs.p_traces[1].rule_id).toBe("r-2");
   });
 
-  it("returns run id, result id, and trace count", async () => {
+  // -----------------------------------------------------------------------
+  // Result mapping
+  // -----------------------------------------------------------------------
+
+  it("returns run id, result id, and trace count from RPC response", async () => {
     const { supabase } = createMockSupabase({
-      runResponse: { data: { id: "run-1" }, error: null },
-      resultResponse: { data: { id: "result-1" }, error: null },
-      tracesResponse: { error: null, count: 2 },
+      data: {
+        evaluation_run_id: "run-abc",
+        evaluation_result_id: "result-xyz",
+        persisted_rule_trace_count: 3,
+      },
     });
 
     const result = await persistDirectEvaluationRun({ supabase, input: BASE_INPUT });
 
-    expect(result.evaluationRunId).toBe("run-1");
-    expect(result.evaluationResultId).toBe("result-1");
-    expect(result.persistedRuleTraceCount).toBe(2);
+    expect(result.evaluationRunId).toBe("run-abc");
+    expect(result.evaluationResultId).toBe("result-xyz");
+    expect(result.persistedRuleTraceCount).toBe(3);
   });
 
   // -----------------------------------------------------------------------
-  // Success with zero traces
+  // Zero traces
   // -----------------------------------------------------------------------
 
-  it("skips trace insert and returns count 0 when no traces", async () => {
-    const inputNoTraces = { ...BASE_INPUT, ruleTraces: [] };
-    const { supabase, fromCalls } = createMockSupabase();
+  it("supports zero traces through the atomic RPC call", async () => {
+    const inputNoTraces = { ...BASE_INPUT, ruleTraces: [] as const };
+    const { supabase, rpcMock } = createMockSupabase({
+      data: {
+        evaluation_run_id: "run-1",
+        evaluation_result_id: "result-1",
+        persisted_rule_trace_count: 0,
+      },
+    });
 
     const result = await persistDirectEvaluationRun({ supabase, input: inputNoTraces });
 
-    expect(fromCalls).toHaveLength(2);
-    expect(fromCalls[0].table).toBe("evaluation_runs");
-    expect(fromCalls[1].table).toBe("evaluation_results");
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    const callArgs = rpcMock.mock.calls[0][1];
+    expect(callArgs.p_traces).toHaveLength(0);
     expect(result.persistedRuleTraceCount).toBe(0);
   });
 
@@ -216,33 +198,25 @@ describe("persistDirectEvaluationRun", () => {
   // Failure passthrough
   // -----------------------------------------------------------------------
 
-  it("throws on run insert error", async () => {
+  it("throws on RPC error", async () => {
     const { supabase } = createMockSupabase({
-      runResponse: { data: null, error: { message: "run insert failed" } },
+      data: null,
+      error: { message: "transaction aborted" },
     });
 
     await expect(
       persistDirectEvaluationRun({ supabase, input: BASE_INPUT })
-    ).rejects.toThrow("Failed to insert evaluation_runs: run insert failed");
+    ).rejects.toThrow("Failed to persist direct evaluation run: transaction aborted");
   });
 
-  it("throws on result insert error", async () => {
+  it("throws when RPC returns null data", async () => {
     const { supabase } = createMockSupabase({
-      resultResponse: { data: null, error: { message: "result insert failed" } },
+      data: null,
+      error: null,
     });
 
     await expect(
       persistDirectEvaluationRun({ supabase, input: BASE_INPUT })
-    ).rejects.toThrow("Failed to insert evaluation_results: result insert failed");
-  });
-
-  it("throws on traces insert error", async () => {
-    const { supabase } = createMockSupabase({
-      tracesResponse: { error: { message: "traces insert failed" }, count: null },
-    });
-
-    await expect(
-      persistDirectEvaluationRun({ supabase, input: BASE_INPUT })
-    ).rejects.toThrow("Failed to insert evaluation_rule_traces: traces insert failed");
+    ).rejects.toThrow("Failed to persist direct evaluation run: no data returned");
   });
 });
