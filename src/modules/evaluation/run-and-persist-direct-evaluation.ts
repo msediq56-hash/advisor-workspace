@@ -146,6 +146,8 @@ function resolveTraceExplanationAr(rule: {
   requiredSubjectNames?: readonly string[];
   matchedGradeValue?: number | null;
   requiredMinimumGradeValue?: number;
+  actualValue?: number | null;
+  requiredMinimumValue?: number;
 }): string {
   if (rule.ruleTypeKey === "minimum_subject_count") {
     return renderDirectEvaluationRuleTraceExplanation({
@@ -172,6 +174,15 @@ function resolveTraceExplanationAr(rule: {
       matchedSubjectName: rule.matchedSubjectName,
       matchedGradeValue: rule.matchedGradeValue,
       requiredMinimumGradeValue: rule.requiredMinimumGradeValue,
+    }).explanationAr;
+  }
+
+  if (rule.ruleTypeKey === "minimum_overall_grade") {
+    return renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: rule.ruleTypeKey,
+      outcome: rule.outcome as "passed" | "failed" | "skipped",
+      actualValue: rule.actualValue,
+      requiredMinimumValue: rule.requiredMinimumValue,
     }).explanationAr;
   }
 

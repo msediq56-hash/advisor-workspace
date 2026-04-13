@@ -18,6 +18,8 @@ export interface RenderDirectEvaluationRuleTraceExplanationInput {
   requiredSubjectNames?: readonly string[];
   matchedGradeValue?: number | null;
   requiredMinimumGradeValue?: number;
+  actualValue?: number | null;
+  requiredMinimumValue?: number;
 }
 
 /** Result of rendering one rule trace Arabic explanation. */

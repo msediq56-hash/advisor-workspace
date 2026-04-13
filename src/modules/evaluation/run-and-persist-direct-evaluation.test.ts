@@ -446,6 +446,76 @@ describe("runAndPersistDirectEvaluation", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Trace explanation: supported minimum_overall_grade
+  // -------------------------------------------------------------------------
+
+  it("sources explanation_ar from dedicated renderer for minimum_overall_grade passed traces", async () => {
+    const groupExecutions = [
+      {
+        ruleGroupId: "rg-1",
+        groupSeverity: "blocking",
+        groupEvaluationMode: "all_required",
+        groupOutcome: "passed",
+        ruleExecutions: [
+          { ruleId: "r-1", ruleTypeKey: "minimum_overall_grade", outcome: "passed", actualValue: 85, requiredMinimumValue: 80 },
+        ],
+      },
+    ];
+
+    mockRun.mockResolvedValue(makeRuntimeResult({ groupExecutions }) as never);
+    mockPersist.mockResolvedValue(MOCK_PERSIST_RESULT);
+    mockRenderTrace.mockReturnValue({ explanationAr: "المعدل العام يحقق الحد الأدنى" });
+
+    await runAndPersistDirectEvaluation({
+      supabase: MOCK_SUPABASE,
+      input: { evaluation: MOCK_EVALUATION_INPUT, persistenceMetadata: MOCK_METADATA },
+    });
+
+    expect(mockRenderTrace).toHaveBeenCalledWith({
+      ruleTypeKey: "minimum_overall_grade",
+      outcome: "passed",
+      actualValue: 85,
+      requiredMinimumValue: 80,
+    });
+
+    const persistCall = mockPersist.mock.calls[0][0];
+    expect(persistCall.input.ruleTraces[0].explanation_ar).toBe("المعدل العام يحقق الحد الأدنى");
+  });
+
+  it("sources explanation_ar from dedicated renderer for minimum_overall_grade failed traces", async () => {
+    const groupExecutions = [
+      {
+        ruleGroupId: "rg-1",
+        groupSeverity: "blocking",
+        groupEvaluationMode: "all_required",
+        groupOutcome: "failed",
+        ruleExecutions: [
+          { ruleId: "r-1", ruleTypeKey: "minimum_overall_grade", outcome: "failed", actualValue: 70, requiredMinimumValue: 80 },
+        ],
+      },
+    ];
+
+    mockRun.mockResolvedValue(makeRuntimeResult({ groupExecutions }) as never);
+    mockPersist.mockResolvedValue(MOCK_PERSIST_RESULT);
+    mockRenderTrace.mockReturnValue({ explanationAr: "المعدل العام لا يحقق الحد الأدنى" });
+
+    await runAndPersistDirectEvaluation({
+      supabase: MOCK_SUPABASE,
+      input: { evaluation: MOCK_EVALUATION_INPUT, persistenceMetadata: MOCK_METADATA },
+    });
+
+    expect(mockRenderTrace).toHaveBeenCalledWith({
+      ruleTypeKey: "minimum_overall_grade",
+      outcome: "failed",
+      actualValue: 70,
+      requiredMinimumValue: 80,
+    });
+
+    const persistCall = mockPersist.mock.calls[0][0];
+    expect(persistCall.input.ruleTraces[0].explanation_ar).toBe("المعدل العام لا يحقق الحد الأدنى");
+  });
+
+  // -------------------------------------------------------------------------
   // Trace explanation: unsupported non-skipped uses compatibility string
   // -------------------------------------------------------------------------
 

@@ -104,6 +104,62 @@ describe("renderDirectEvaluationRuleTraceExplanation — minimum_subject_grade",
   });
 });
 
+describe("renderDirectEvaluationRuleTraceExplanation — minimum_overall_grade", () => {
+  it("renders passed with actual value and required minimum", () => {
+    const result = renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: "minimum_overall_grade",
+      outcome: "passed",
+      actualValue: 85,
+      requiredMinimumValue: 80,
+    });
+
+    expect(result.explanationAr).toContain("85");
+    expect(result.explanationAr).toContain("80");
+    expect(typeof result.explanationAr).toBe("string");
+  });
+
+  it("renders failed with actual value and required minimum", () => {
+    const result = renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: "minimum_overall_grade",
+      outcome: "failed",
+      actualValue: 70,
+      requiredMinimumValue: 80,
+    });
+
+    expect(result.explanationAr).toContain("70");
+    expect(result.explanationAr).toContain("80");
+    expect(typeof result.explanationAr).toBe("string");
+  });
+
+  it("renders skipped explanation", () => {
+    const result = renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: "minimum_overall_grade",
+      outcome: "skipped",
+    });
+
+    expect(result.explanationAr).toBeTruthy();
+    expect(typeof result.explanationAr).toBe("string");
+  });
+
+  it("produces different explanations for passed vs failed", () => {
+    const passed = renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: "minimum_overall_grade",
+      outcome: "passed",
+      actualValue: 85,
+      requiredMinimumValue: 80,
+    });
+
+    const failed = renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: "minimum_overall_grade",
+      outcome: "failed",
+      actualValue: 70,
+      requiredMinimumValue: 80,
+    });
+
+    expect(passed.explanationAr).not.toBe(failed.explanationAr);
+  });
+});
+
 describe("renderDirectEvaluationRuleTraceExplanation — unsupported type", () => {
   it("throws on unsupported rule type", () => {
     expect(() =>

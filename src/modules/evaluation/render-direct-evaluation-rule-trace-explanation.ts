@@ -9,6 +9,7 @@
  * - minimum_subject_count (passed, failed, skipped)
  * - required_subject_exists (passed, failed, skipped)
  * - minimum_subject_grade (passed, failed, skipped)
+ * - minimum_overall_grade (passed, failed, skipped)
  *
  * Server-side only — do not import from client components.
  */
@@ -33,10 +34,12 @@ export function renderDirectEvaluationRuleTraceExplanation(
       return renderRequiredSubjectExists(input);
     case "minimum_subject_grade":
       return renderMinimumSubjectGrade(input);
+    case "minimum_overall_grade":
+      return renderMinimumOverallGrade(input);
     default:
       throw new Error(
         `Unsupported rule type for trace explanation: "${input.ruleTypeKey}". ` +
-        `Only "minimum_subject_count", "required_subject_exists", and "minimum_subject_grade" are supported in the current baseline.`
+        `Only "minimum_subject_count", "required_subject_exists", "minimum_subject_grade", and "minimum_overall_grade" are supported in the current baseline.`
       );
   }
 }
@@ -164,5 +167,41 @@ function renderMinimumSubjectGrade(
 
   throw new Error(
     `Unsupported outcome "${input.outcome}" for minimum_subject_grade trace explanation.`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// minimum_overall_grade
+// ---------------------------------------------------------------------------
+
+function renderMinimumOverallGrade(
+  input: RenderDirectEvaluationRuleTraceExplanationInput
+): RenderDirectEvaluationRuleTraceExplanationResult {
+  if (input.outcome === "skipped") {
+    return {
+      explanationAr: "تم تخطي قاعدة الحد الأدنى للمعدل العام — لم تُنفَّذ في النسخة الحالية.",
+    };
+  }
+
+  const valuePart =
+    input.actualValue !== undefined && input.actualValue !== null &&
+    input.requiredMinimumValue !== undefined
+      ? ` — القيمة ${input.actualValue} والحد الأدنى المطلوب (${input.requiredMinimumValue})`
+      : "";
+
+  if (input.outcome === "passed") {
+    return {
+      explanationAr: `المعدل العام يحقق شرط الحد الأدنى${valuePart}.`,
+    };
+  }
+
+  if (input.outcome === "failed") {
+    return {
+      explanationAr: `المعدل العام لا يحقق شرط الحد الأدنى${valuePart}.`,
+    };
+  }
+
+  throw new Error(
+    `Unsupported outcome "${input.outcome}" for minimum_overall_grade trace explanation.`
   );
 }
