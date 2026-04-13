@@ -1,0 +1,223 @@
+/**
+ * British golden-case verification baseline.
+ *
+ * Exercises the real execution → assembly → rendering path with no mocking
+ * of evaluator/assembly/rendering logic. Uses explicit fixtures that
+ * represent realistic British direct-evaluation scenarios grounded in
+ * the current supported rule surface:
+ * - minimum_subject_count
+ * - required_subject_exists
+ * - minimum_subject_grade
+ *
+ * This is not a unit-test slice — it is a higher-value integration
+ * verification layer for the current British direct-evaluation runtime.
+ */
+
+import { describe, it, expect } from "vitest";
+import { executeDirectEvaluationRuleContext } from "../execute-direct-evaluation-rule-context";
+import { assembleDirectEvaluationResult } from "../assemble-direct-evaluation-result";
+import { renderDirectEvaluationPrimaryReason } from "../render-direct-evaluation-primary-reason";
+import { renderDirectEvaluationNextStep } from "../render-direct-evaluation-next-step";
+import { renderDirectEvaluationAdvisoryNotes } from "../render-direct-evaluation-advisory-notes";
+import { renderDirectEvaluationRuleTraceExplanation } from "../render-direct-evaluation-rule-trace-explanation";
+
+import {
+  GOLDEN_ELIGIBLE,
+  GOLDEN_NOT_ELIGIBLE,
+  GOLDEN_CONDITIONAL,
+} from "./british-golden-case-fixtures";
+
+// ---------------------------------------------------------------------------
+// Helper: run the full execution → assembly → rendering path
+// ---------------------------------------------------------------------------
+
+function runGoldenCase(goldenCase: {
+  prepared: Parameters<typeof executeDirectEvaluationRuleContext>[0]["prepared"];
+  resolvedContext: Parameters<typeof executeDirectEvaluationRuleContext>[0]["resolvedContext"];
+}) {
+  const execution = executeDirectEvaluationRuleContext({
+    prepared: goldenCase.prepared,
+    resolvedContext: goldenCase.resolvedContext,
+  });
+
+  const assembled = assembleDirectEvaluationResult({ execution });
+
+  const primaryReason = renderDirectEvaluationPrimaryReason({ assembled });
+  const nextStep = renderDirectEvaluationNextStep({ assembled });
+  const advisoryNotes = renderDirectEvaluationAdvisoryNotes({ assembled });
+
+  // Render trace explanations for each rule execution
+  const traceExplanations: Record<string, string> = {};
+  for (const group of execution.groupExecutions) {
+    for (const rule of group.ruleExecutions) {
+      traceExplanations[rule.ruleId] = renderDirectEvaluationRuleTraceExplanation({
+        ruleTypeKey: rule.ruleTypeKey,
+        outcome: rule.outcome,
+        matchedCount: rule.matchedCount,
+        requiredCount: rule.requiredCount,
+        matchedSubjectName: rule.matchedSubjectName,
+        requiredSubjectNames: rule.requiredSubjectNames,
+        matchedGradeValue: rule.matchedGradeValue,
+        requiredMinimumGradeValue: rule.requiredMinimumGradeValue,
+      }).explanationAr;
+    }
+  }
+
+  return {
+    execution,
+    assembled,
+    primaryReason,
+    nextStep,
+    advisoryNotes,
+    traceExplanations,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// GOLDEN CASE 1: eligible
+// ---------------------------------------------------------------------------
+
+describe(`Golden: ${GOLDEN_ELIGIBLE.label}`, () => {
+  const result = runGoldenCase(GOLDEN_ELIGIBLE);
+
+  it("produces final status 'eligible'", () => {
+    expect(result.assembled.finalStatus).toBe(GOLDEN_ELIGIBLE.expected.finalStatus);
+  });
+
+  it("produces primary reason key 'all_required_groups_satisfied'", () => {
+    expect(result.assembled.primaryReasonKey).toBe(GOLDEN_ELIGIBLE.expected.primaryReasonKey);
+  });
+
+  it("renders Arabic primary reason", () => {
+    expect(result.primaryReason.primaryReasonAr).toBeTruthy();
+    expect(typeof result.primaryReason.primaryReasonAr).toBe("string");
+  });
+
+  it("renders Arabic next step", () => {
+    expect(result.nextStep.nextStepAr).toBeTruthy();
+    expect(typeof result.nextStep.nextStepAr).toBe("string");
+  });
+
+  it("produces correct rule outcomes", () => {
+    for (const group of result.execution.groupExecutions) {
+      for (const rule of group.ruleExecutions) {
+        const expectedOutcome = GOLDEN_ELIGIBLE.expected.ruleOutcomes[rule.ruleId as keyof typeof GOLDEN_ELIGIBLE.expected.ruleOutcomes];
+        expect(rule.outcome, `rule ${rule.ruleId}`).toBe(expectedOutcome);
+      }
+    }
+  });
+
+  it("renders dedicated trace explanations for all supported rules", () => {
+    expect(Object.keys(result.traceExplanations)).toHaveLength(3);
+    for (const [ruleId, explanation] of Object.entries(result.traceExplanations)) {
+      expect(explanation, `trace for ${ruleId}`).toBeTruthy();
+      expect(typeof explanation).toBe("string");
+    }
+  });
+
+  it("has zero failed groups and correct counters", () => {
+    expect(result.assembled.failedGroupsCount).toBe(0);
+    expect(result.assembled.conditionalGroupsCount).toBe(0);
+    expect(result.assembled.matchedRulesCount).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GOLDEN CASE 2: not_eligible
+// ---------------------------------------------------------------------------
+
+describe(`Golden: ${GOLDEN_NOT_ELIGIBLE.label}`, () => {
+  const result = runGoldenCase(GOLDEN_NOT_ELIGIBLE);
+
+  it("produces final status 'not_eligible'", () => {
+    expect(result.assembled.finalStatus).toBe(GOLDEN_NOT_ELIGIBLE.expected.finalStatus);
+  });
+
+  it("produces primary reason key 'blocking_group_failed'", () => {
+    expect(result.assembled.primaryReasonKey).toBe(GOLDEN_NOT_ELIGIBLE.expected.primaryReasonKey);
+  });
+
+  it("renders Arabic primary reason for not_eligible", () => {
+    expect(result.primaryReason.primaryReasonAr).toBeTruthy();
+    expect(typeof result.primaryReason.primaryReasonAr).toBe("string");
+  });
+
+  it("produces correct rule outcomes — count and exists pass, grade fails", () => {
+    for (const group of result.execution.groupExecutions) {
+      for (const rule of group.ruleExecutions) {
+        const expectedOutcome = GOLDEN_NOT_ELIGIBLE.expected.ruleOutcomes[rule.ruleId as keyof typeof GOLDEN_NOT_ELIGIBLE.expected.ruleOutcomes];
+        expect(rule.outcome, `rule ${rule.ruleId}`).toBe(expectedOutcome);
+      }
+    }
+  });
+
+  it("grade rule trace explanation contains the actual and required grade values", () => {
+    const gradeExplanation = result.traceExplanations["r-grade"];
+    expect(gradeExplanation).toBeTruthy();
+    // Student has grade 80, threshold is 90
+    expect(gradeExplanation).toContain("80");
+    expect(gradeExplanation).toContain("90");
+  });
+
+  it("has one failed blocking group", () => {
+    expect(result.assembled.failedGroupsCount).toBe(1);
+    expect(result.assembled.conditionalGroupsCount).toBe(0);
+    // count and exists pass, grade fails
+    expect(result.assembled.matchedRulesCount).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GOLDEN CASE 3: conditional
+// ---------------------------------------------------------------------------
+
+describe(`Golden: ${GOLDEN_CONDITIONAL.label}`, () => {
+  const result = runGoldenCase(GOLDEN_CONDITIONAL);
+
+  it("produces final status 'conditional'", () => {
+    expect(result.assembled.finalStatus).toBe(GOLDEN_CONDITIONAL.expected.finalStatus);
+  });
+
+  it("produces primary reason key 'conditional_group_failed'", () => {
+    expect(result.assembled.primaryReasonKey).toBe(GOLDEN_CONDITIONAL.expected.primaryReasonKey);
+  });
+
+  it("renders Arabic primary reason for conditional", () => {
+    expect(result.primaryReason.primaryReasonAr).toBeTruthy();
+    expect(typeof result.primaryReason.primaryReasonAr).toBe("string");
+  });
+
+  it("blocking group passes but conditional group fails", () => {
+    expect(result.execution.groupExecutions).toHaveLength(2);
+
+    const blockingGroup = result.execution.groupExecutions[0];
+    expect(blockingGroup.groupOutcome).toBe("passed");
+
+    const conditionalGroup = result.execution.groupExecutions[1];
+    expect(conditionalGroup.groupOutcome).toBe("failed");
+  });
+
+  it("produces correct rule outcomes across both groups", () => {
+    for (const group of result.execution.groupExecutions) {
+      for (const rule of group.ruleExecutions) {
+        const expectedOutcome = GOLDEN_CONDITIONAL.expected.ruleOutcomes[rule.ruleId as keyof typeof GOLDEN_CONDITIONAL.expected.ruleOutcomes];
+        expect(rule.outcome, `rule ${rule.ruleId}`).toBe(expectedOutcome);
+      }
+    }
+  });
+
+  it("physics grade trace explanation shows the grade gap", () => {
+    const physicsExplanation = result.traceExplanations["r-grade-physics"];
+    expect(physicsExplanation).toBeTruthy();
+    // Physics grade is 70, threshold is 75
+    expect(physicsExplanation).toContain("70");
+    expect(physicsExplanation).toContain("75");
+  });
+
+  it("has zero failed blocking groups and one conditional group", () => {
+    expect(result.assembled.failedGroupsCount).toBe(0);
+    expect(result.assembled.conditionalGroupsCount).toBe(1);
+    // count + exists pass in blocking group = 2 matched
+    expect(result.assembled.matchedRulesCount).toBe(2);
+  });
+});
