@@ -53,14 +53,13 @@ function classifyRouteError(err: unknown): ClassifiedRouteError {
   if (
     message.startsWith("Org context not resolved:") ||
     message.startsWith("Insufficient role:") ||
-    message.startsWith("Source profile not found:") ||
     message.startsWith("Source profile access denied:")
   ) {
     return { status: 403, code: "access_denied", message };
   }
 
-  // 500 — everything else
-  return { status: 500, code: "internal_error", message };
+  // 500 — everything else (redact raw internal message)
+  return { status: 500, code: "internal_error", message: "Internal server error" };
 }
 
 // ---------------------------------------------------------------------------

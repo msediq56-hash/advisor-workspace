@@ -282,7 +282,40 @@ describe("POST /api/direct-evaluation", () => {
   });
 
   // -------------------------------------------------------------------------
-  // 500 — internal error
+  // 403 — source profile access denied (unified)
+  // -------------------------------------------------------------------------
+
+  it("returns 403 access_denied for source profile boundary failure", async () => {
+    mockInvoke.mockRejectedValue(
+      new Error("Source profile access denied: the referenced student profile is not accessible")
+    );
+
+    const res = await POST(makeRequest(VALID_BRITISH_BODY));
+    const body = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(body.error.code).toBe("access_denied");
+  });
+
+  it("source profile not-found and foreign-org produce indistinguishable outward message", async () => {
+    // Both cases now throw the same unified error from the invocation boundary
+    const unifiedMessage = "Source profile access denied: the referenced student profile is not accessible";
+
+    mockInvoke.mockRejectedValue(new Error(unifiedMessage));
+    const res1 = await POST(makeRequest(VALID_BRITISH_BODY));
+    const body1 = await res1.json();
+
+    mockInvoke.mockRejectedValue(new Error(unifiedMessage));
+    const res2 = await POST(makeRequest(VALID_BRITISH_BODY));
+    const body2 = await res2.json();
+
+    expect(body1.error.code).toBe(body2.error.code);
+    expect(body1.error.message).toBe(body2.error.message);
+    expect(res1.status).toBe(res2.status);
+  });
+
+  // -------------------------------------------------------------------------
+  // 500 — internal error (redacted)
   // -------------------------------------------------------------------------
 
   it("returns 500 internal_error for unknown errors", async () => {
@@ -293,6 +326,18 @@ describe("POST /api/direct-evaluation", () => {
 
     expect(res.status).toBe(500);
     expect(body.error.code).toBe("internal_error");
-    expect(body.error.message).toBe("Something unexpected");
+    expect(body.error.message).toBe("Internal server error");
+  });
+
+  it("does not expose raw internal error messages in 500 responses", async () => {
+    mockInvoke.mockRejectedValue(new Error("database connection pool exhausted at row 42"));
+
+    const res = await POST(makeRequest(VALID_BRITISH_BODY));
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error.message).toBe("Internal server error");
+    expect(body.error.message).not.toContain("database");
+    expect(body.error.message).not.toContain("pool");
   });
 });

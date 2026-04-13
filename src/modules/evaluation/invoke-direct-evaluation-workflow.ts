@@ -55,15 +55,9 @@ export async function invokeDirectEvaluationWorkflow(
       );
     }
 
-    if (!profile) {
+    if (!profile || profile.organization_id !== access.orgContext.organizationId) {
       throw new Error(
-        "Source profile not found: the referenced student profile does not exist"
-      );
-    }
-
-    if (profile.organization_id !== access.orgContext.organizationId) {
-      throw new Error(
-        "Source profile access denied: the referenced student profile belongs to a different organization"
+        "Source profile access denied: the referenced student profile is not accessible"
       );
     }
   }

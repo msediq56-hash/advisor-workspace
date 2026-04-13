@@ -297,9 +297,23 @@ describe("invokeDirectEvaluationWorkflow", () => {
     const input = { ...BASE_INPUT, sourceProfileId: "profile-nonexistent" };
 
     await expect(invokeDirectEvaluationWorkflow(input)).rejects.toThrow(
-      "Source profile not found:"
+      "Source profile access denied:"
     );
     expect(mockRunAndPersist).not.toHaveBeenCalled();
+  });
+
+  it("produces indistinguishable errors for not-found and foreign-org profiles", async () => {
+    // Not found
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+    const input1 = { ...BASE_INPUT, sourceProfileId: "profile-missing" };
+    const err1 = await invokeDirectEvaluationWorkflow(input1).catch((e: Error) => e.message);
+
+    // Foreign org
+    mockMaybeSingle.mockResolvedValue({ data: { organization_id: "org-other" }, error: null });
+    const input2 = { ...BASE_INPUT, sourceProfileId: "profile-foreign" };
+    const err2 = await invokeDirectEvaluationWorkflow(input2).catch((e: Error) => e.message);
+
+    expect(err1).toBe(err2);
   });
 
   it("fails before workflow when profile lookup returns a database error", async () => {
