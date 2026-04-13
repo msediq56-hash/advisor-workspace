@@ -8,6 +8,8 @@
  * Accepts both British and simple-form prepared input. British-only
  * rule types (minimum_subject_count, required_subject_exists,
  * minimum_subject_grade) are skipped for non-British input.
+ * Simple-form-only rule types (minimum_overall_grade) are skipped
+ * for British input.
  *
  * Pure sync function — no DB access.
  */
@@ -15,6 +17,7 @@
 import { evaluateMinimumSubjectCountRule } from "./evaluate-minimum-subject-count-rule";
 import { evaluateRequiredSubjectExistsRule } from "./evaluate-required-subject-exists-rule";
 import { evaluateMinimumSubjectGradeRule } from "./evaluate-minimum-subject-grade-rule";
+import { evaluateMinimumOverallGradeRule } from "./evaluate-minimum-overall-grade-rule";
 import type { PreparedBritishDirectEvaluation } from "@/types/prepared-british-direct-evaluation";
 import type { PreparedSimpleFormDirectEvaluation } from "@/types/prepared-simple-form-direct-evaluation";
 import type { ResolvedDirectEvaluationRuleContext } from "@/types/direct-evaluation-resolved-rule-context";
@@ -45,6 +48,15 @@ function isBritishPreparedInput(
 }
 
 /**
+ * Type guard: check if the prepared input is simple-form (non-British).
+ */
+function isSimpleFormPreparedInput(
+  prepared: PreparedDirectEvaluationInput
+): prepared is PreparedSimpleFormDirectEvaluation {
+  return !isBritishPreparedInput(prepared);
+}
+
+/**
  * Execute all rule groups in a resolved direct-evaluation context.
  * Returns ordered execution traces only.
  */
@@ -55,6 +67,7 @@ export function executeDirectEvaluationRuleContext(params: {
   const { prepared, resolvedContext } = params;
 
   const britishPrepared = isBritishPreparedInput(prepared) ? prepared : null;
+  const simpleFormPrepared = isSimpleFormPreparedInput(prepared) ? prepared : null;
 
   const groupExecutions: DirectEvaluationRuleGroupExecution[] =
     resolvedContext.ruleGroups.map((group) => {
@@ -136,6 +149,32 @@ export function executeDirectEvaluationRuleContext(params: {
               matchedSubjectName: result.matchedSubjectName,
               matchedGradeValue: result.matchedGradeValue,
               requiredMinimumGradeValue: result.requiredMinimumGradeValue,
+            };
+          }
+
+          if (rule.ruleTypeKey === "minimum_overall_grade") {
+            // Simple-form-only rule type — skip for British input
+            if (!simpleFormPrepared) {
+              return {
+                ruleId: rule.ruleId,
+                ruleTypeKey: rule.ruleTypeKey,
+                outcome: "skipped" as const,
+              };
+            }
+
+            const result = evaluateMinimumOverallGradeRule({
+              prepared: simpleFormPrepared,
+              ruleId: rule.ruleId,
+              ruleTypeKey: rule.ruleTypeKey,
+              ruleConfig: rule.ruleConfig,
+            });
+
+            return {
+              ruleId: rule.ruleId,
+              ruleTypeKey: rule.ruleTypeKey,
+              outcome: result.outcome,
+              actualValue: result.actualValue,
+              requiredMinimumValue: result.requiredMinimumValue,
             };
           }
 

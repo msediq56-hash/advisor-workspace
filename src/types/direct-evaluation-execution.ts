@@ -33,6 +33,13 @@ export interface MinimumSubjectGradeRuleExecutionResult {
   requiredMinimumGradeValue: number;
 }
 
+/** Detailed result of a minimum_overall_grade rule execution. */
+export interface MinimumOverallGradeRuleExecutionResult {
+  outcome: DirectEvaluationRuleExecutionOutcome;
+  actualValue: number | null;
+  requiredMinimumValue: number;
+}
+
 /** Trace entry for one executed rule within a group. */
 export interface DirectEvaluationRuleExecution {
   ruleId: string;
@@ -44,6 +51,8 @@ export interface DirectEvaluationRuleExecution {
   requiredSubjectNames?: readonly string[];
   matchedGradeValue?: number | null;
   requiredMinimumGradeValue?: number;
+  actualValue?: number | null;
+  requiredMinimumValue?: number;
 }
 
 /** Trace entry for one executed rule group. */
