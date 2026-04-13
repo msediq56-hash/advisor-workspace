@@ -8,6 +8,7 @@
  * Supports:
  * - minimum_subject_count (passed, failed, skipped)
  * - required_subject_exists (passed, failed, skipped)
+ * - minimum_subject_grade (passed, failed, skipped)
  *
  * Server-side only — do not import from client components.
  */
@@ -30,10 +31,12 @@ export function renderDirectEvaluationRuleTraceExplanation(
       return renderMinimumSubjectCount(input);
     case "required_subject_exists":
       return renderRequiredSubjectExists(input);
+    case "minimum_subject_grade":
+      return renderMinimumSubjectGrade(input);
     default:
       throw new Error(
         `Unsupported rule type for trace explanation: "${input.ruleTypeKey}". ` +
-        `Only "minimum_subject_count" and "required_subject_exists" are supported in the current baseline.`
+        `Only "minimum_subject_count", "required_subject_exists", and "minimum_subject_grade" are supported in the current baseline.`
       );
   }
 }
@@ -110,5 +113,56 @@ function renderRequiredSubjectExists(
 
   throw new Error(
     `Unsupported outcome "${input.outcome}" for required_subject_exists trace explanation.`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// minimum_subject_grade
+// ---------------------------------------------------------------------------
+
+function renderMinimumSubjectGrade(
+  input: RenderDirectEvaluationRuleTraceExplanationInput
+): RenderDirectEvaluationRuleTraceExplanationResult {
+  if (input.outcome === "skipped") {
+    return {
+      explanationAr: "تم تخطي قاعدة الحد الأدنى لدرجة المادة — لم تُنفَّذ في النسخة الحالية.",
+    };
+  }
+
+  if (input.outcome === "passed") {
+    const subjectPart = input.matchedSubjectName
+      ? ` (${input.matchedSubjectName})`
+      : "";
+    const gradePart =
+      input.matchedGradeValue !== undefined && input.matchedGradeValue !== null &&
+      input.requiredMinimumGradeValue !== undefined
+        ? ` — الدرجة ${input.matchedGradeValue} تحقق الحد الأدنى المطلوب (${input.requiredMinimumGradeValue})`
+        : "";
+    return {
+      explanationAr: `المادة المطابقة${subjectPart} تحقق شرط الحد الأدنى للدرجة${gradePart}.`,
+    };
+  }
+
+  if (input.outcome === "failed") {
+    // Two failure shapes:
+    // 1. Subject matched but grade below threshold
+    if (input.matchedSubjectName) {
+      const gradePart =
+        input.matchedGradeValue !== undefined && input.matchedGradeValue !== null &&
+        input.requiredMinimumGradeValue !== undefined
+          ? ` — الدرجة ${input.matchedGradeValue} أقل من الحد الأدنى المطلوب (${input.requiredMinimumGradeValue})`
+          : "";
+      return {
+        explanationAr: `المادة المطابقة (${input.matchedSubjectName}) لا تحقق شرط الحد الأدنى للدرجة${gradePart}.`,
+      };
+    }
+    // 2. No matching subject found at all
+    return {
+      explanationAr: "لم يتم العثور على المادة المطلوبة لتقييم الحد الأدنى للدرجة.",
+    };
+  }
+
+  throw new Error(
+    `Unsupported outcome "${input.outcome}" for minimum_subject_grade trace explanation.`
   );
 }

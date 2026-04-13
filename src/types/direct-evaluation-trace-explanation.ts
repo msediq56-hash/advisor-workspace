@@ -16,6 +16,8 @@ export interface RenderDirectEvaluationRuleTraceExplanationInput {
   requiredCount?: number;
   matchedSubjectName?: string | null;
   requiredSubjectNames?: readonly string[];
+  matchedGradeValue?: number | null;
+  requiredMinimumGradeValue?: number;
 }
 
 /** Result of rendering one rule trace Arabic explanation. */

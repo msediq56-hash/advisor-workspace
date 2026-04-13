@@ -374,6 +374,78 @@ describe("runAndPersistDirectEvaluation", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Trace explanation: supported minimum_subject_grade
+  // -------------------------------------------------------------------------
+
+  it("sources explanation_ar from dedicated renderer for minimum_subject_grade passed traces", async () => {
+    const groupExecutions = [
+      {
+        ruleGroupId: "rg-1",
+        groupSeverity: "blocking",
+        groupEvaluationMode: "all_required",
+        groupOutcome: "passed",
+        ruleExecutions: [
+          { ruleId: "r-1", ruleTypeKey: "minimum_subject_grade", outcome: "passed", matchedSubjectName: "mathematics", matchedGradeValue: 80, requiredMinimumGradeValue: 70 },
+        ],
+      },
+    ];
+
+    mockRun.mockResolvedValue(makeRuntimeResult({ groupExecutions }) as never);
+    mockPersist.mockResolvedValue(MOCK_PERSIST_RESULT);
+    mockRenderTrace.mockReturnValue({ explanationAr: "المادة تحقق الحد الأدنى للدرجة" });
+
+    await runAndPersistDirectEvaluation({
+      supabase: MOCK_SUPABASE,
+      input: { evaluation: MOCK_EVALUATION_INPUT, persistenceMetadata: MOCK_METADATA },
+    });
+
+    expect(mockRenderTrace).toHaveBeenCalledWith({
+      ruleTypeKey: "minimum_subject_grade",
+      outcome: "passed",
+      matchedSubjectName: "mathematics",
+      matchedGradeValue: 80,
+      requiredMinimumGradeValue: 70,
+    });
+
+    const persistCall = mockPersist.mock.calls[0][0];
+    expect(persistCall.input.ruleTraces[0].explanation_ar).toBe("المادة تحقق الحد الأدنى للدرجة");
+  });
+
+  it("sources explanation_ar from dedicated renderer for minimum_subject_grade failed traces", async () => {
+    const groupExecutions = [
+      {
+        ruleGroupId: "rg-1",
+        groupSeverity: "blocking",
+        groupEvaluationMode: "all_required",
+        groupOutcome: "failed",
+        ruleExecutions: [
+          { ruleId: "r-1", ruleTypeKey: "minimum_subject_grade", outcome: "failed", matchedSubjectName: "mathematics", matchedGradeValue: 50, requiredMinimumGradeValue: 70 },
+        ],
+      },
+    ];
+
+    mockRun.mockResolvedValue(makeRuntimeResult({ groupExecutions }) as never);
+    mockPersist.mockResolvedValue(MOCK_PERSIST_RESULT);
+    mockRenderTrace.mockReturnValue({ explanationAr: "المادة لا تحقق الحد الأدنى" });
+
+    await runAndPersistDirectEvaluation({
+      supabase: MOCK_SUPABASE,
+      input: { evaluation: MOCK_EVALUATION_INPUT, persistenceMetadata: MOCK_METADATA },
+    });
+
+    expect(mockRenderTrace).toHaveBeenCalledWith({
+      ruleTypeKey: "minimum_subject_grade",
+      outcome: "failed",
+      matchedSubjectName: "mathematics",
+      matchedGradeValue: 50,
+      requiredMinimumGradeValue: 70,
+    });
+
+    const persistCall = mockPersist.mock.calls[0][0];
+    expect(persistCall.input.ruleTraces[0].explanation_ar).toBe("المادة لا تحقق الحد الأدنى");
+  });
+
+  // -------------------------------------------------------------------------
   // Trace explanation: unsupported non-skipped uses compatibility string
   // -------------------------------------------------------------------------
 
