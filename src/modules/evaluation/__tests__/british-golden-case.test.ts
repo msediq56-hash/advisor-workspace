@@ -25,6 +25,8 @@ import {
   GOLDEN_ELIGIBLE,
   GOLDEN_NOT_ELIGIBLE,
   GOLDEN_CONDITIONAL,
+  GOLDEN_NEEDS_REVIEW,
+  GOLDEN_ADVISORY_NON_DOWNGRADE,
 } from "./british-golden-case-fixtures";
 
 // ---------------------------------------------------------------------------
@@ -218,6 +220,134 @@ describe(`Golden: ${GOLDEN_CONDITIONAL.label}`, () => {
     expect(result.assembled.failedGroupsCount).toBe(0);
     expect(result.assembled.conditionalGroupsCount).toBe(1);
     // count + exists pass in blocking group = 2 matched
+    expect(result.assembled.matchedRulesCount).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GOLDEN CASE 4: needs_review
+// ---------------------------------------------------------------------------
+
+describe(`Golden: ${GOLDEN_NEEDS_REVIEW.label}`, () => {
+  const result = runGoldenCase(GOLDEN_NEEDS_REVIEW);
+
+  it("produces final status 'needs_review'", () => {
+    expect(result.assembled.finalStatus).toBe(GOLDEN_NEEDS_REVIEW.expected.finalStatus);
+  });
+
+  it("produces primary reason key 'review_group_failed'", () => {
+    expect(result.assembled.primaryReasonKey).toBe(GOLDEN_NEEDS_REVIEW.expected.primaryReasonKey);
+  });
+
+  it("renders Arabic primary reason for needs_review", () => {
+    expect(result.primaryReason.primaryReasonAr).toBeTruthy();
+    expect(typeof result.primaryReason.primaryReasonAr).toBe("string");
+  });
+
+  it("renders Arabic next step for needs_review", () => {
+    expect(result.nextStep.nextStepAr).toBeTruthy();
+    expect(typeof result.nextStep.nextStepAr).toBe("string");
+  });
+
+  it("blocking group passes but review group fails", () => {
+    expect(result.execution.groupExecutions).toHaveLength(2);
+
+    const blockingGroup = result.execution.groupExecutions[0];
+    expect(blockingGroup.groupOutcome).toBe("passed");
+
+    const reviewGroup = result.execution.groupExecutions[1];
+    expect(reviewGroup.groupOutcome).toBe("failed");
+  });
+
+  it("produces correct rule outcomes across both groups", () => {
+    for (const group of result.execution.groupExecutions) {
+      for (const rule of group.ruleExecutions) {
+        const expectedOutcome = GOLDEN_NEEDS_REVIEW.expected.ruleOutcomes[rule.ruleId as keyof typeof GOLDEN_NEEDS_REVIEW.expected.ruleOutcomes];
+        expect(rule.outcome, `rule ${rule.ruleId}`).toBe(expectedOutcome);
+      }
+    }
+  });
+
+  it("chemistry grade trace explanation shows the grade gap", () => {
+    const chemExplanation = result.traceExplanations["r-grade-chemistry"];
+    expect(chemExplanation).toBeTruthy();
+    // Chemistry grade is 60, threshold is 65
+    expect(chemExplanation).toContain("60");
+    expect(chemExplanation).toContain("65");
+  });
+
+  it("has one failed review group and zero conditional groups", () => {
+    expect(result.assembled.failedGroupsCount).toBe(1);
+    expect(result.assembled.conditionalGroupsCount).toBe(0);
+    // count + exists pass = 2 matched
+    expect(result.assembled.matchedRulesCount).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GOLDEN CASE 5: advisory non-downgrade
+// ---------------------------------------------------------------------------
+
+describe(`Golden: ${GOLDEN_ADVISORY_NON_DOWNGRADE.label}`, () => {
+  const result = runGoldenCase(GOLDEN_ADVISORY_NON_DOWNGRADE);
+
+  it("produces final status 'eligible' despite advisory failure", () => {
+    expect(result.assembled.finalStatus).toBe(GOLDEN_ADVISORY_NON_DOWNGRADE.expected.finalStatus);
+  });
+
+  it("produces primary reason key 'all_required_groups_satisfied'", () => {
+    expect(result.assembled.primaryReasonKey).toBe(GOLDEN_ADVISORY_NON_DOWNGRADE.expected.primaryReasonKey);
+  });
+
+  it("renders Arabic primary reason for eligible", () => {
+    expect(result.primaryReason.primaryReasonAr).toBeTruthy();
+    expect(typeof result.primaryReason.primaryReasonAr).toBe("string");
+  });
+
+  it("blocking group passes and advisory group fails", () => {
+    expect(result.execution.groupExecutions).toHaveLength(2);
+
+    const blockingGroup = result.execution.groupExecutions[0];
+    expect(blockingGroup.groupOutcome).toBe("passed");
+
+    const advisoryGroup = result.execution.groupExecutions[1];
+    expect(advisoryGroup.groupOutcome).toBe("failed");
+    expect(advisoryGroup.groupSeverity).toBe("advisory");
+  });
+
+  it("advisory failure does NOT downgrade final status away from eligible", () => {
+    // This is the key assertion: advisory failures must not change the final status
+    expect(result.assembled.finalStatus).toBe("eligible");
+    expect(result.assembled.failedGroupsCount).toBe(0);
+    expect(result.assembled.conditionalGroupsCount).toBe(0);
+  });
+
+  it("advisory notes contain the advisory failure note", () => {
+    expect(result.advisoryNotes.advisoryNotesAr.length).toBeGreaterThan(0);
+    expect(result.advisoryNotes.advisoryNotesAr.some(
+      (note: string) => note.length > 0
+    )).toBe(true);
+  });
+
+  it("produces correct rule outcomes across both groups", () => {
+    for (const group of result.execution.groupExecutions) {
+      for (const rule of group.ruleExecutions) {
+        const expectedOutcome = GOLDEN_ADVISORY_NON_DOWNGRADE.expected.ruleOutcomes[rule.ruleId as keyof typeof GOLDEN_ADVISORY_NON_DOWNGRADE.expected.ruleOutcomes];
+        expect(rule.outcome, `rule ${rule.ruleId}`).toBe(expectedOutcome);
+      }
+    }
+  });
+
+  it("biology grade trace explanation shows the grade gap", () => {
+    const bioExplanation = result.traceExplanations["r-grade-biology"];
+    expect(bioExplanation).toBeTruthy();
+    // Biology grade is 70, threshold is 75
+    expect(bioExplanation).toContain("70");
+    expect(bioExplanation).toContain("75");
+  });
+
+  it("matched rules count reflects only blocking group passes", () => {
+    // count + exists pass in blocking = 2; biology fails in advisory = not counted
     expect(result.assembled.matchedRulesCount).toBe(2);
   });
 });

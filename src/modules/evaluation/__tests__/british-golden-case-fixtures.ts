@@ -303,3 +303,138 @@ export const GOLDEN_CONDITIONAL = {
     },
   },
 };
+
+// ---------------------------------------------------------------------------
+// GOLDEN CASE 4: needs_review
+// ---------------------------------------------------------------------------
+// Student passes blocking requirements but fails a review-severity group's
+// minimum_subject_grade rule (Chemistry grade 60 < required 65).
+// Review severity failure → needs_review.
+
+export const GOLDEN_NEEDS_REVIEW = {
+  label: "British student needs review — blocking passes but review-severity group fails",
+  prepared: makePrepared(),
+  resolvedContext: makeResolvedContext([
+    {
+      ruleGroupId: "rg-blocking-1",
+      groupKey: "core_requirements",
+      groupSeverity: "blocking",
+      groupEvaluationMode: "all_required",
+      orderIndex: 0,
+      rules: [
+        {
+          ruleId: "r-count",
+          ruleTypeKey: "minimum_subject_count",
+          ruleConfig: {
+            segment: "a_level",
+            minimumCount: 3,
+          },
+          orderIndex: 0,
+        },
+        {
+          ruleId: "r-exists",
+          ruleTypeKey: "required_subject_exists",
+          ruleConfig: {
+            subjectNamesNormalized: ["mathematics"],
+          },
+          orderIndex: 1,
+        },
+      ],
+    },
+    {
+      ruleGroupId: "rg-review-1",
+      groupKey: "review_grade_check",
+      groupSeverity: "review",
+      groupEvaluationMode: "all_required",
+      orderIndex: 1,
+      rules: [
+        {
+          ruleId: "r-grade-chemistry",
+          ruleTypeKey: "minimum_subject_grade",
+          ruleConfig: {
+            subjectNameNormalized: "chemistry",
+            minimumGradeValue: 65,
+          },
+          orderIndex: 0,
+        },
+      ],
+    },
+  ]),
+  expected: {
+    finalStatus: "needs_review" as const,
+    primaryReasonKey: "review_group_failed",
+    ruleOutcomes: {
+      "r-count": "passed",
+      "r-exists": "passed",
+      "r-grade-chemistry": "failed",
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------
+// GOLDEN CASE 5: advisory non-downgrade
+// ---------------------------------------------------------------------------
+// Student passes all blocking rules. An advisory-severity group fails
+// (minimum_subject_grade for Biology: 70 < 75). Advisory failures do NOT
+// downgrade final status away from eligible. Advisory notes should be present.
+
+export const GOLDEN_ADVISORY_NON_DOWNGRADE = {
+  label: "British student eligible despite advisory failure — advisory does not downgrade",
+  prepared: makePrepared(),
+  resolvedContext: makeResolvedContext([
+    {
+      ruleGroupId: "rg-blocking-1",
+      groupKey: "core_requirements",
+      groupSeverity: "blocking",
+      groupEvaluationMode: "all_required",
+      orderIndex: 0,
+      rules: [
+        {
+          ruleId: "r-count",
+          ruleTypeKey: "minimum_subject_count",
+          ruleConfig: {
+            segment: "a_level",
+            minimumCount: 3,
+          },
+          orderIndex: 0,
+        },
+        {
+          ruleId: "r-exists",
+          ruleTypeKey: "required_subject_exists",
+          ruleConfig: {
+            subjectNamesNormalized: ["mathematics"],
+          },
+          orderIndex: 1,
+        },
+      ],
+    },
+    {
+      ruleGroupId: "rg-advisory-1",
+      groupKey: "preferred_biology_grade",
+      groupSeverity: "advisory",
+      groupEvaluationMode: "all_required",
+      orderIndex: 1,
+      rules: [
+        {
+          ruleId: "r-grade-biology",
+          ruleTypeKey: "minimum_subject_grade",
+          ruleConfig: {
+            subjectNameNormalized: "biology",
+            minimumGradeValue: 75,
+          },
+          orderIndex: 0,
+        },
+      ],
+    },
+  ]),
+  expected: {
+    finalStatus: "eligible" as const,
+    primaryReasonKey: "all_required_groups_satisfied",
+    ruleOutcomes: {
+      "r-count": "passed",
+      "r-exists": "passed",
+      "r-grade-biology": "failed",
+    },
+    advisoryGroupOutcome: "failed",
+  },
+};
