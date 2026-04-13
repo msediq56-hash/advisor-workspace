@@ -4,7 +4,7 @@
  * Tests the executor's rule dispatch, group outcome derivation,
  * British/non-British narrowing, and unsupported rule-type handling.
  *
- * Mocks only: evaluateMinimumSubjectCountRule, evaluateRequiredSubjectExistsRule.
+ * Mocks only: evaluateMinimumSubjectCountRule, evaluateRequiredSubjectExistsRule, evaluateMinimumSubjectGradeRule.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -17,12 +17,18 @@ vi.mock("./evaluate-required-subject-exists-rule", () => ({
   evaluateRequiredSubjectExistsRule: vi.fn(),
 }));
 
+vi.mock("./evaluate-minimum-subject-grade-rule", () => ({
+  evaluateMinimumSubjectGradeRule: vi.fn(),
+}));
+
 import { executeDirectEvaluationRuleContext } from "./execute-direct-evaluation-rule-context";
 import { evaluateMinimumSubjectCountRule } from "./evaluate-minimum-subject-count-rule";
 import { evaluateRequiredSubjectExistsRule } from "./evaluate-required-subject-exists-rule";
+import { evaluateMinimumSubjectGradeRule } from "./evaluate-minimum-subject-grade-rule";
 
 const mockEvalRule = vi.mocked(evaluateMinimumSubjectCountRule);
 const mockEvalRequiredSubject = vi.mocked(evaluateRequiredSubjectExistsRule);
+const mockEvalMinGrade = vi.mocked(evaluateMinimumSubjectGradeRule);
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -95,6 +101,7 @@ describe("executeDirectEvaluationRuleContext", () => {
   beforeEach(() => {
     mockEvalRule.mockReset();
     mockEvalRequiredSubject.mockReset();
+    mockEvalMinGrade.mockReset();
   });
 
   // -----------------------------------------------------------------------
@@ -534,6 +541,95 @@ describe("executeDirectEvaluationRuleContext", () => {
     });
 
     expect(mockEvalRequiredSubject).not.toHaveBeenCalled();
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("skipped");
+    expect(result.groupExecutions[0].groupOutcome).toBe("skipped");
+  });
+
+  // -----------------------------------------------------------------------
+  // Supported: minimum_subject_grade with British input
+  // -----------------------------------------------------------------------
+
+  it("evaluates minimum_subject_grade as passed for British input", () => {
+    mockEvalMinGrade.mockReturnValue({
+      outcome: "passed",
+      matchedSubjectName: "mathematics",
+      matchedGradeValue: 80,
+      requiredMinimumGradeValue: 70,
+    });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_grade", ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 70 }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(mockEvalMinGrade).toHaveBeenCalledOnce();
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("passed");
+    expect(result.groupExecutions[0].ruleExecutions[0].matchedSubjectName).toBe("mathematics");
+    expect(result.groupExecutions[0].ruleExecutions[0].matchedGradeValue).toBe(80);
+    expect(result.groupExecutions[0].ruleExecutions[0].requiredMinimumGradeValue).toBe(70);
+    expect(result.groupExecutions[0].groupOutcome).toBe("passed");
+  });
+
+  it("evaluates minimum_subject_grade as failed for British input", () => {
+    mockEvalMinGrade.mockReturnValue({
+      outcome: "failed",
+      matchedSubjectName: "mathematics",
+      matchedGradeValue: 60,
+      requiredMinimumGradeValue: 70,
+    });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_grade", ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 70 }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("failed");
+    expect(result.groupExecutions[0].ruleExecutions[0].matchedGradeValue).toBe(60);
+    expect(result.groupExecutions[0].ruleExecutions[0].requiredMinimumGradeValue).toBe(70);
+    expect(result.groupExecutions[0].groupOutcome).toBe("failed");
+  });
+
+  // -----------------------------------------------------------------------
+  // minimum_subject_grade skipped for non-British input
+  // -----------------------------------------------------------------------
+
+  it("skips minimum_subject_grade for simple-form input", () => {
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeSimpleFormPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_grade", ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 70 }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(mockEvalMinGrade).not.toHaveBeenCalled();
     expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("skipped");
     expect(result.groupExecutions[0].groupOutcome).toBe("skipped");
   });

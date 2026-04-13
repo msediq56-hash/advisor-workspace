@@ -25,6 +25,14 @@ export interface RequiredSubjectExistsRuleExecutionResult {
   requiredSubjectNames: readonly string[];
 }
 
+/** Detailed result of a minimum_subject_grade rule execution. */
+export interface MinimumSubjectGradeRuleExecutionResult {
+  outcome: DirectEvaluationRuleExecutionOutcome;
+  matchedSubjectName: string | null;
+  matchedGradeValue: number | null;
+  requiredMinimumGradeValue: number;
+}
+
 /** Trace entry for one executed rule within a group. */
 export interface DirectEvaluationRuleExecution {
   ruleId: string;
@@ -34,6 +42,8 @@ export interface DirectEvaluationRuleExecution {
   requiredCount?: number;
   matchedSubjectName?: string | null;
   requiredSubjectNames?: readonly string[];
+  matchedGradeValue?: number | null;
+  requiredMinimumGradeValue?: number;
 }
 
 /** Trace entry for one executed rule group. */
