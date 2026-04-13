@@ -521,3 +521,43 @@
 **Title:** Dedicated trace explanation renderer support for `minimum_subject_grade` accepted
 **Status:** Final
 **Decision:** The dedicated trace-level Arabic explanation renderer (`render-direct-evaluation-rule-trace-explanation.ts`) now supports `minimum_subject_grade` in addition to `minimum_subject_count` and `required_subject_exists`. Dedicated Arabic rendering covers: passed (subject met threshold, includes matched name and grade context), failed with matched subject below threshold (includes matched name, actual grade, required minimum), failed with no matching subject found (dedicated "subject not found" message), and skipped (standard British-only skip explanation). The trace explanation input type was extended with optional `matchedGradeValue` and `requiredMinimumGradeValue` fields. The run-and-persist workflow (`run-and-persist-direct-evaluation.ts`) now routes `minimum_subject_grade` through the dedicated renderer path alongside `minimum_subject_count` and `required_subject_exists`. Compatibility fallback for other unsupported trace explanation rule types remains unchanged. A new standalone trace renderer test file was added (6 tests). Workflow tests were extended with 2 new tests for `minimum_subject_grade` passed/failed trace explanation sourcing (total 15 workflow tests). Total project test count after this slice: 189 tests across 15 test files.
+
+---
+
+## Decision 066
+
+**Title:** British golden-case verification baseline accepted
+**Status:** Final
+**Decision:** A British golden-case verification baseline was added (`__tests__/british-golden-case-fixtures.ts`, `__tests__/british-golden-case.test.ts`). It exercises the real execution → assembly → rendering path with no mocking of core business logic (evaluators, result assembly, explanation renderers, trace renderers). Initial coverage includes British `eligible` (all blocking rules pass), `not_eligible` (blocking group fails due to minimum_subject_grade threshold), and `conditional` (blocking passes but conditional-severity group fails). All cases are grounded only in the current supported British rule surface (`minimum_subject_count`, `required_subject_exists`, `minimum_subject_grade`). Total project test count after this slice: 209 tests across 16 test files.
+
+---
+
+## Decision 067
+
+**Title:** British golden-case expansion for `needs_review` and advisory non-downgrade accepted
+**Status:** Final
+**Decision:** The British golden-case verification baseline was expanded with two additional cases: (1) `needs_review` — blocking group passes but a review-severity group fails (Chemistry grade 60 < required 65), producing `needs_review` with `review_group_failed`; (2) advisory non-downgrade — blocking group passes but an advisory-severity group fails (Biology grade 70 < required 75), final status remains `eligible` with `all_required_groups_satisfied`, advisory notes are present and non-empty. Both cases confirm that advisory failures do not downgrade final status (Decision 028). All five current-state final statuses that the runtime can produce are now covered by golden cases. Total project test count after this slice: 226 tests across 16 test files.
+
+---
+
+## Decision 068
+
+**Title:** `minimum_overall_grade` evaluator baseline accepted — first simple-form evaluator
+**Status:** Final
+**Decision:** A narrow simple-form-only `minimum_overall_grade` evaluator was added (`evaluate-minimum-overall-grade-rule.ts`). It reads a configured `profileField` from the normalized simple-form profile and compares the value against a configured `minimumValue` threshold. Supported field mapping: `arabic_secondary` → `finalAverage`, `american_high_school` → `gpa`, `international_baccalaureate` → `totalPoints`. Non-applicable input (profile family doesn't match configured field) returns `skipped`. Execution trace types were extended with `MinimumOverallGradeRuleExecutionResult` and optional `actualValue`/`requiredMinimumValue` fields on `DirectEvaluationRuleExecution`. The executor (`execute-direct-evaluation-rule-context.ts`) was extended with a `minimum_overall_grade` dispatch branch (simple-form-only, skipped for British). No new normalization, no grade-scale conversion, no broader academic policy. Dedicated pure evaluator tests added (14 tests). Executor tests extended with 3 new tests (total 23 executor tests). Total project test count after this slice: 243 tests across 17 test files.
+
+---
+
+## Decision 069
+
+**Title:** Dedicated trace explanation renderer support for `minimum_overall_grade` accepted
+**Status:** Final
+**Decision:** The dedicated trace-level Arabic explanation renderer (`render-direct-evaluation-rule-trace-explanation.ts`) now supports `minimum_overall_grade` in addition to `minimum_subject_count`, `required_subject_exists`, and `minimum_subject_grade`. Dedicated Arabic rendering covers: passed (overall grade meets required minimum, includes actual value and threshold), failed (overall grade does not meet required minimum, includes actual value and threshold), and skipped (standard non-applicable rule skip explanation). The trace explanation input type was extended with optional `actualValue` and `requiredMinimumValue` fields. The run-and-persist workflow now routes `minimum_overall_grade` through the dedicated renderer path. Compatibility fallback for other unsupported trace explanation rule types remains unchanged. Trace renderer tests extended with 4 new tests (total 10). Workflow tests extended with 2 new tests (total 17). Total project test count after this slice: 249 tests across 17 test files.
+
+---
+
+## Decision 070
+
+**Title:** Simple-form golden-case verification baseline accepted
+**Status:** Final
+**Decision:** A simple-form golden-case verification baseline was added (`__tests__/simple-form-golden-case-fixtures.ts`, `__tests__/simple-form-golden-case.test.ts`). It exercises the real execution → assembly → rendering path with no mocking of core business logic. Uses `arabic_secondary` as the representative simple-form family with `finalAverage` profile field. Coverage includes simple-form `eligible` (finalAverage 85 ≥ blocking threshold 80), `not_eligible` (finalAverage 70 < blocking threshold 80), and `conditional` (finalAverage 85 passes blocking ≥80 but fails conditional ≥90). All cases are grounded only in the current supported simple-form rule surface (`minimum_overall_grade`). Dedicated trace rendering for `minimum_overall_grade` is exercised and verified in all cases. Total project test count after this slice: 269 tests across 18 test files.
