@@ -561,3 +561,11 @@
 **Title:** Simple-form golden-case verification baseline accepted
 **Status:** Final
 **Decision:** A simple-form golden-case verification baseline was added (`__tests__/simple-form-golden-case-fixtures.ts`, `__tests__/simple-form-golden-case.test.ts`). It exercises the real execution → assembly → rendering path with no mocking of core business logic. Uses `arabic_secondary` as the representative simple-form family with `finalAverage` profile field. Coverage includes simple-form `eligible` (finalAverage 85 ≥ blocking threshold 80), `not_eligible` (finalAverage 70 < blocking threshold 80), and `conditional` (finalAverage 85 passes blocking ≥80 but fails conditional ≥90). All cases are grounded only in the current supported simple-form rule surface (`minimum_overall_grade`). Dedicated trace rendering for `minimum_overall_grade` is exercised and verified in all cases. Total project test count after this slice: 269 tests across 18 test files.
+
+---
+
+## Decision 071
+
+**Title:** Simple-form golden-case expansion for `needs_review` and advisory non-downgrade accepted
+**Status:** Final
+**Decision:** The simple-form golden-case verification baseline was expanded with two additional cases, mirroring the already-accepted British golden-case expansion pattern: (1) `needs_review` — blocking group passes (finalAverage 85 ≥ 80) but a review-severity group fails (finalAverage 85 < required 90), producing `needs_review` with `review_group_failed`; (2) advisory non-downgrade — blocking group passes (finalAverage 85 ≥ 80) but an advisory-severity group fails (finalAverage 85 < required 90), final status remains `eligible` with `all_required_groups_satisfied`, advisory notes are present and non-empty. Both cases confirm that advisory failures do not downgrade final status (Decision 028). All five current-state final-status outcomes now have simple-form golden-case coverage, matching the British golden-case completeness. All cases remain grounded only in the current supported simple-form rule surface (`minimum_overall_grade`) with `arabic_secondary` as the representative family. Total project test count after this slice: 286 tests across 18 test files.
