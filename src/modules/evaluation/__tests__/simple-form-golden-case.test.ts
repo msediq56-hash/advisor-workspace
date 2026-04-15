@@ -23,6 +23,8 @@ import {
   SF_GOLDEN_ELIGIBLE,
   SF_GOLDEN_NOT_ELIGIBLE,
   SF_GOLDEN_CONDITIONAL,
+  SF_GOLDEN_NEEDS_REVIEW,
+  SF_GOLDEN_ADVISORY_NON_DOWNGRADE,
 } from "./simple-form-golden-case-fixtures";
 
 // ---------------------------------------------------------------------------
@@ -204,6 +206,127 @@ describe(`Golden: ${SF_GOLDEN_CONDITIONAL.label}`, () => {
     expect(result.assembled.failedGroupsCount).toBe(0);
     expect(result.assembled.conditionalGroupsCount).toBe(1);
     // blocking rule passes = 1 matched
+    expect(result.assembled.matchedRulesCount).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GOLDEN CASE 4: needs_review
+// ---------------------------------------------------------------------------
+
+describe(`Golden: ${SF_GOLDEN_NEEDS_REVIEW.label}`, () => {
+  const result = runGoldenCase(SF_GOLDEN_NEEDS_REVIEW);
+
+  it("produces final status 'needs_review'", () => {
+    expect(result.assembled.finalStatus).toBe(SF_GOLDEN_NEEDS_REVIEW.expected.finalStatus);
+  });
+
+  it("produces primary reason key 'review_group_failed'", () => {
+    expect(result.assembled.primaryReasonKey).toBe(SF_GOLDEN_NEEDS_REVIEW.expected.primaryReasonKey);
+  });
+
+  it("renders Arabic primary reason for needs_review", () => {
+    expect(result.primaryReason.primaryReasonAr).toBeTruthy();
+    expect(typeof result.primaryReason.primaryReasonAr).toBe("string");
+  });
+
+  it("renders Arabic next step for needs_review", () => {
+    expect(result.nextStep.nextStepAr).toBeTruthy();
+  });
+
+  it("blocking group passes but review group fails", () => {
+    expect(result.execution.groupExecutions).toHaveLength(2);
+
+    const blockingGroup = result.execution.groupExecutions[0];
+    expect(blockingGroup.groupOutcome).toBe("passed");
+
+    const reviewGroup = result.execution.groupExecutions[1];
+    expect(reviewGroup.groupOutcome).toBe("failed");
+  });
+
+  it("produces correct rule outcomes across both groups", () => {
+    for (const group of result.execution.groupExecutions) {
+      for (const rule of group.ruleExecutions) {
+        const expectedOutcome = SF_GOLDEN_NEEDS_REVIEW.expected.ruleOutcomes[rule.ruleId as keyof typeof SF_GOLDEN_NEEDS_REVIEW.expected.ruleOutcomes];
+        expect(rule.outcome, `rule ${rule.ruleId}`).toBe(expectedOutcome);
+      }
+    }
+  });
+
+  it("review rule trace shows actual vs required values", () => {
+    const explanation = result.traceExplanations["r-overall-review"];
+    expect(explanation).toBeTruthy();
+    expect(explanation).toContain("85");
+    expect(explanation).toContain("90");
+  });
+
+  it("has one failed review group and zero conditional groups", () => {
+    expect(result.assembled.failedGroupsCount).toBe(1);
+    expect(result.assembled.conditionalGroupsCount).toBe(0);
+    expect(result.assembled.matchedRulesCount).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GOLDEN CASE 5: advisory non-downgrade
+// ---------------------------------------------------------------------------
+
+describe(`Golden: ${SF_GOLDEN_ADVISORY_NON_DOWNGRADE.label}`, () => {
+  const result = runGoldenCase(SF_GOLDEN_ADVISORY_NON_DOWNGRADE);
+
+  it("produces final status 'eligible' despite advisory failure", () => {
+    expect(result.assembled.finalStatus).toBe(SF_GOLDEN_ADVISORY_NON_DOWNGRADE.expected.finalStatus);
+  });
+
+  it("produces primary reason key 'all_required_groups_satisfied'", () => {
+    expect(result.assembled.primaryReasonKey).toBe(SF_GOLDEN_ADVISORY_NON_DOWNGRADE.expected.primaryReasonKey);
+  });
+
+  it("renders Arabic primary reason for eligible", () => {
+    expect(result.primaryReason.primaryReasonAr).toBeTruthy();
+  });
+
+  it("blocking group passes and advisory group fails", () => {
+    expect(result.execution.groupExecutions).toHaveLength(2);
+
+    const blockingGroup = result.execution.groupExecutions[0];
+    expect(blockingGroup.groupOutcome).toBe("passed");
+
+    const advisoryGroup = result.execution.groupExecutions[1];
+    expect(advisoryGroup.groupOutcome).toBe("failed");
+    expect(advisoryGroup.groupSeverity).toBe("advisory");
+  });
+
+  it("advisory failure does NOT downgrade final status away from eligible", () => {
+    expect(result.assembled.finalStatus).toBe("eligible");
+    expect(result.assembled.failedGroupsCount).toBe(0);
+    expect(result.assembled.conditionalGroupsCount).toBe(0);
+  });
+
+  it("advisory notes contain the advisory failure note", () => {
+    expect(result.advisoryNotes.advisoryNotesAr.length).toBeGreaterThan(0);
+    expect(result.advisoryNotes.advisoryNotesAr.some(
+      (note: string) => note.length > 0
+    )).toBe(true);
+  });
+
+  it("produces correct rule outcomes across both groups", () => {
+    for (const group of result.execution.groupExecutions) {
+      for (const rule of group.ruleExecutions) {
+        const expectedOutcome = SF_GOLDEN_ADVISORY_NON_DOWNGRADE.expected.ruleOutcomes[rule.ruleId as keyof typeof SF_GOLDEN_ADVISORY_NON_DOWNGRADE.expected.ruleOutcomes];
+        expect(rule.outcome, `rule ${rule.ruleId}`).toBe(expectedOutcome);
+      }
+    }
+  });
+
+  it("advisory rule trace shows actual vs required values", () => {
+    const explanation = result.traceExplanations["r-overall-advisory"];
+    expect(explanation).toBeTruthy();
+    expect(explanation).toContain("85");
+    expect(explanation).toContain("90");
+  });
+
+  it("matched rules count reflects only blocking group passes", () => {
     expect(result.assembled.matchedRulesCount).toBe(1);
   });
 });
