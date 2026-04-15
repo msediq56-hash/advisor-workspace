@@ -40,6 +40,13 @@ export interface MinimumOverallGradeRuleExecutionResult {
   requiredMinimumValue: number;
 }
 
+/** Detailed result of an accepted_qualification_type rule execution. */
+export interface AcceptedQualificationTypeRuleExecutionResult {
+  outcome: DirectEvaluationRuleExecutionOutcome;
+  actualQualificationTypeKey: string;
+  acceptedQualificationTypeKeys: readonly string[];
+}
+
 /** Trace entry for one executed rule within a group. */
 export interface DirectEvaluationRuleExecution {
   ruleId: string;
@@ -53,6 +60,8 @@ export interface DirectEvaluationRuleExecution {
   requiredMinimumGradeValue?: number;
   actualValue?: number | null;
   requiredMinimumValue?: number;
+  actualQualificationTypeKey?: string;
+  acceptedQualificationTypeKeys?: readonly string[];
 }
 
 /** Trace entry for one executed rule group. */

@@ -4,7 +4,7 @@
  * Tests the executor's rule dispatch, group outcome derivation,
  * British/non-British narrowing, and unsupported rule-type handling.
  *
- * Mocks only: evaluateMinimumSubjectCountRule, evaluateRequiredSubjectExistsRule, evaluateMinimumSubjectGradeRule, evaluateMinimumOverallGradeRule.
+ * Mocks only: evaluateMinimumSubjectCountRule, evaluateRequiredSubjectExistsRule, evaluateMinimumSubjectGradeRule, evaluateMinimumOverallGradeRule, evaluateAcceptedQualificationTypeRule.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -25,16 +25,22 @@ vi.mock("./evaluate-minimum-overall-grade-rule", () => ({
   evaluateMinimumOverallGradeRule: vi.fn(),
 }));
 
+vi.mock("./evaluate-accepted-qualification-type-rule", () => ({
+  evaluateAcceptedQualificationTypeRule: vi.fn(),
+}));
+
 import { executeDirectEvaluationRuleContext } from "./execute-direct-evaluation-rule-context";
 import { evaluateMinimumSubjectCountRule } from "./evaluate-minimum-subject-count-rule";
 import { evaluateRequiredSubjectExistsRule } from "./evaluate-required-subject-exists-rule";
 import { evaluateMinimumSubjectGradeRule } from "./evaluate-minimum-subject-grade-rule";
 import { evaluateMinimumOverallGradeRule } from "./evaluate-minimum-overall-grade-rule";
+import { evaluateAcceptedQualificationTypeRule } from "./evaluate-accepted-qualification-type-rule";
 
 const mockEvalRule = vi.mocked(evaluateMinimumSubjectCountRule);
 const mockEvalRequiredSubject = vi.mocked(evaluateRequiredSubjectExistsRule);
 const mockEvalMinGrade = vi.mocked(evaluateMinimumSubjectGradeRule);
 const mockEvalOverallGrade = vi.mocked(evaluateMinimumOverallGradeRule);
+const mockEvalAcceptedQualType = vi.mocked(evaluateAcceptedQualificationTypeRule);
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -109,6 +115,7 @@ describe("executeDirectEvaluationRuleContext", () => {
     mockEvalRequiredSubject.mockReset();
     mockEvalMinGrade.mockReset();
     mockEvalOverallGrade.mockReset();
+    mockEvalAcceptedQualType.mockReset();
   });
 
   // -----------------------------------------------------------------------
@@ -725,5 +732,117 @@ describe("executeDirectEvaluationRuleContext", () => {
     expect(mockEvalOverallGrade).not.toHaveBeenCalled();
     expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("skipped");
     expect(result.groupExecutions[0].groupOutcome).toBe("skipped");
+  });
+
+  // -----------------------------------------------------------------------
+  // Supported: accepted_qualification_type (both British and simple-form)
+  // -----------------------------------------------------------------------
+
+  it("evaluates accepted_qualification_type as passed for British input", () => {
+    mockEvalAcceptedQualType.mockReturnValue({
+      outcome: "passed",
+      actualQualificationTypeKey: "british_a_level",
+      acceptedQualificationTypeKeys: ["british_a_level"],
+    });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "accepted_qualification_type", ruleConfig: { acceptedQualificationTypeKeys: ["british_a_level"] }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(mockEvalAcceptedQualType).toHaveBeenCalledOnce();
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("passed");
+    expect(result.groupExecutions[0].ruleExecutions[0].actualQualificationTypeKey).toBe("british_a_level");
+    expect(result.groupExecutions[0].ruleExecutions[0].acceptedQualificationTypeKeys).toEqual(["british_a_level"]);
+    expect(result.groupExecutions[0].groupOutcome).toBe("passed");
+  });
+
+  it("evaluates accepted_qualification_type as failed for British input", () => {
+    mockEvalAcceptedQualType.mockReturnValue({
+      outcome: "failed",
+      actualQualificationTypeKey: "british_gcse",
+      acceptedQualificationTypeKeys: ["british_a_level"],
+    });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeBritishPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "accepted_qualification_type", ruleConfig: { acceptedQualificationTypeKeys: ["british_a_level"] }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("failed");
+    expect(result.groupExecutions[0].groupOutcome).toBe("failed");
+  });
+
+  it("evaluates accepted_qualification_type as passed for simple-form input", () => {
+    mockEvalAcceptedQualType.mockReturnValue({
+      outcome: "passed",
+      actualQualificationTypeKey: "arabic_sec",
+      acceptedQualificationTypeKeys: ["arabic_sec"],
+    });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeSimpleFormPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "accepted_qualification_type", ruleConfig: { acceptedQualificationTypeKeys: ["arabic_sec"] }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(mockEvalAcceptedQualType).toHaveBeenCalledOnce();
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("passed");
+    expect(result.groupExecutions[0].groupOutcome).toBe("passed");
+  });
+
+  it("evaluates accepted_qualification_type as failed for simple-form input", () => {
+    mockEvalAcceptedQualType.mockReturnValue({
+      outcome: "failed",
+      actualQualificationTypeKey: "arabic_sec",
+      acceptedQualificationTypeKeys: ["american_hs"],
+    });
+
+    const result = executeDirectEvaluationRuleContext({
+      prepared: makeSimpleFormPrepared(),
+      resolvedContext: makeResolvedContext([
+        {
+          ruleGroupId: "rg-1",
+          groupSeverity: "blocking",
+          groupEvaluationMode: "all_required",
+          orderIndex: 0,
+          rules: [
+            { ruleId: "r-1", ruleTypeKey: "accepted_qualification_type", ruleConfig: { acceptedQualificationTypeKeys: ["american_hs"] }, orderIndex: 0 },
+          ],
+        },
+      ]),
+    });
+
+    expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("failed");
+    expect(result.groupExecutions[0].groupOutcome).toBe("failed");
   });
 });

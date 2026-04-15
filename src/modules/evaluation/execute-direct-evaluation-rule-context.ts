@@ -17,6 +17,7 @@
 import { evaluateMinimumSubjectCountRule } from "./evaluate-minimum-subject-count-rule";
 import { evaluateRequiredSubjectExistsRule } from "./evaluate-required-subject-exists-rule";
 import { evaluateMinimumSubjectGradeRule } from "./evaluate-minimum-subject-grade-rule";
+import { evaluateAcceptedQualificationTypeRule } from "./evaluate-accepted-qualification-type-rule";
 import { evaluateMinimumOverallGradeRule } from "./evaluate-minimum-overall-grade-rule";
 import type { PreparedBritishDirectEvaluation } from "@/types/prepared-british-direct-evaluation";
 import type { PreparedSimpleFormDirectEvaluation } from "@/types/prepared-simple-form-direct-evaluation";
@@ -175,6 +176,24 @@ export function executeDirectEvaluationRuleContext(params: {
               outcome: result.outcome,
               actualValue: result.actualValue,
               requiredMinimumValue: result.requiredMinimumValue,
+            };
+          }
+
+          if (rule.ruleTypeKey === "accepted_qualification_type") {
+            // Works for both British and simple-form — uses resolvedContext.qualificationDefinition
+            const result = evaluateAcceptedQualificationTypeRule({
+              qualificationDefinition: resolvedContext.qualificationDefinition,
+              ruleId: rule.ruleId,
+              ruleTypeKey: rule.ruleTypeKey,
+              ruleConfig: rule.ruleConfig,
+            });
+
+            return {
+              ruleId: rule.ruleId,
+              ruleTypeKey: rule.ruleTypeKey,
+              outcome: result.outcome,
+              actualQualificationTypeKey: result.actualQualificationTypeKey,
+              acceptedQualificationTypeKeys: result.acceptedQualificationTypeKeys,
             };
           }
 
