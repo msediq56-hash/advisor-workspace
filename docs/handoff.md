@@ -239,7 +239,7 @@ British, simple-form, and generic multi-family direct-evaluation in-memory orche
 
 ## Current recommended next step
 
-Verification baseline is complete across all current runtime layers (305 tests across 19 test files). Milestone 0 (core runtime + evaluators + trace renderers) is complete. Milestone 1B (catalog dual-ownership RLS for universities, programs, program_offerings) is complete and runtime-validated. Broader RLS closeout is NOT complete yet — faculties, qualification tables, rule tables, student profile tables, evaluation runtime tables, and governance tables still lack RLS. Next recommended step: Milestone 1C — catalog child RLS (faculties following parent university visibility) and qualification dual-ownership RLS (qualification_types using the same `is_visible_by_ownership` helper).
+Verification baseline is complete across all current runtime layers (305 tests across 19 test files). Milestone 0 (core runtime + evaluators + trace renderers) is complete. Milestone 1B (catalog dual-ownership RLS for universities, programs, program_offerings) is complete and runtime-validated. Broader RLS closeout is NOT complete yet — faculties, qualification tables, rule tables, student profile tables, evaluation runtime tables, and governance tables still lack RLS. Next recommended step: Milestone 1C — catalog child RLS for `faculties` only, following parent `universities` visibility. Then after 1C: Milestone 1D — qualification RLS, starting with `qualification_types` using `is_visible_by_ownership`, then question-set/question/option child policies.
 
 ## Critical constraints to remember
 
