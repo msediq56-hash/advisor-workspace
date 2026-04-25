@@ -32,6 +32,10 @@ function makePrepared(
   subjects: ReturnType<typeof makeSubject>[]
 ): PreparedBritishDirectEvaluation {
   return {
+    workspace: {} as never,
+    target: {} as never,
+    qualificationDefinition: {} as never,
+    rawProfile: {} as never,
     normalizedProfile: {
       qualificationFamily: "british_curriculum",
       countryId: "c-1",
@@ -43,7 +47,7 @@ function makePrepared(
       },
       subjects,
     },
-  } as PreparedBritishDirectEvaluation;
+  };
 }
 
 const BASE_PARAMS = {
