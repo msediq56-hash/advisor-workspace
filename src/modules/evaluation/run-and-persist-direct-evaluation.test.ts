@@ -516,6 +516,76 @@ describe("runAndPersistDirectEvaluation", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Trace explanation: supported accepted_qualification_type
+  // -------------------------------------------------------------------------
+
+  it("sources explanation_ar from dedicated renderer for accepted_qualification_type passed traces", async () => {
+    const groupExecutions = [
+      {
+        ruleGroupId: "rg-1",
+        groupSeverity: "blocking",
+        groupEvaluationMode: "all_required",
+        groupOutcome: "passed",
+        ruleExecutions: [
+          { ruleId: "r-1", ruleTypeKey: "accepted_qualification_type", outcome: "passed", actualQualificationTypeKey: "british_a_level", acceptedQualificationTypeKeys: ["british_a_level"] },
+        ],
+      },
+    ];
+
+    mockRun.mockResolvedValue(makeRuntimeResult({ groupExecutions }) as never);
+    mockPersist.mockResolvedValue(MOCK_PERSIST_RESULT);
+    mockRenderTrace.mockReturnValue({ explanationAr: "نوع الشهادة مقبول" });
+
+    await runAndPersistDirectEvaluation({
+      supabase: MOCK_SUPABASE,
+      input: { evaluation: MOCK_EVALUATION_INPUT, persistenceMetadata: MOCK_METADATA },
+    });
+
+    expect(mockRenderTrace).toHaveBeenCalledWith({
+      ruleTypeKey: "accepted_qualification_type",
+      outcome: "passed",
+      actualQualificationTypeKey: "british_a_level",
+      acceptedQualificationTypeKeys: ["british_a_level"],
+    });
+
+    const persistCall = mockPersist.mock.calls[0][0];
+    expect(persistCall.input.ruleTraces[0].explanation_ar).toBe("نوع الشهادة مقبول");
+  });
+
+  it("sources explanation_ar from dedicated renderer for accepted_qualification_type failed traces", async () => {
+    const groupExecutions = [
+      {
+        ruleGroupId: "rg-1",
+        groupSeverity: "blocking",
+        groupEvaluationMode: "all_required",
+        groupOutcome: "failed",
+        ruleExecutions: [
+          { ruleId: "r-1", ruleTypeKey: "accepted_qualification_type", outcome: "failed", actualQualificationTypeKey: "british_gcse", acceptedQualificationTypeKeys: ["british_a_level"] },
+        ],
+      },
+    ];
+
+    mockRun.mockResolvedValue(makeRuntimeResult({ groupExecutions }) as never);
+    mockPersist.mockResolvedValue(MOCK_PERSIST_RESULT);
+    mockRenderTrace.mockReturnValue({ explanationAr: "نوع الشهادة غير مقبول" });
+
+    await runAndPersistDirectEvaluation({
+      supabase: MOCK_SUPABASE,
+      input: { evaluation: MOCK_EVALUATION_INPUT, persistenceMetadata: MOCK_METADATA },
+    });
+
+    expect(mockRenderTrace).toHaveBeenCalledWith({
+      ruleTypeKey: "accepted_qualification_type",
+      outcome: "failed",
+      actualQualificationTypeKey: "british_gcse",
+      acceptedQualificationTypeKeys: ["british_a_level"],
+    });
+
+    const persistCall = mockPersist.mock.calls[0][0];
+    expect(persistCall.input.ruleTraces[0].explanation_ar).toBe("نوع الشهادة غير مقبول");
+  });
+
+  // -------------------------------------------------------------------------
   // Trace explanation: unsupported non-skipped uses compatibility string
   // -------------------------------------------------------------------------
 

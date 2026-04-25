@@ -160,6 +160,61 @@ describe("renderDirectEvaluationRuleTraceExplanation — minimum_overall_grade",
   });
 });
 
+describe("renderDirectEvaluationRuleTraceExplanation — accepted_qualification_type", () => {
+  it("renders passed with actual key and accepted keys", () => {
+    const result = renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: "accepted_qualification_type",
+      outcome: "passed",
+      actualQualificationTypeKey: "british_a_level",
+      acceptedQualificationTypeKeys: ["british_a_level", "british_gcse"],
+    });
+
+    expect(result.explanationAr).toContain("british_a_level");
+    expect(typeof result.explanationAr).toBe("string");
+  });
+
+  it("renders failed with actual key and accepted keys", () => {
+    const result = renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: "accepted_qualification_type",
+      outcome: "failed",
+      actualQualificationTypeKey: "british_gcse",
+      acceptedQualificationTypeKeys: ["british_a_level"],
+    });
+
+    expect(result.explanationAr).toContain("british_gcse");
+    expect(result.explanationAr).toContain("british_a_level");
+    expect(typeof result.explanationAr).toBe("string");
+  });
+
+  it("renders skipped explanation", () => {
+    const result = renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: "accepted_qualification_type",
+      outcome: "skipped",
+    });
+
+    expect(result.explanationAr).toBeTruthy();
+    expect(typeof result.explanationAr).toBe("string");
+  });
+
+  it("produces different explanations for passed vs failed", () => {
+    const passed = renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: "accepted_qualification_type",
+      outcome: "passed",
+      actualQualificationTypeKey: "british_a_level",
+      acceptedQualificationTypeKeys: ["british_a_level"],
+    });
+
+    const failed = renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: "accepted_qualification_type",
+      outcome: "failed",
+      actualQualificationTypeKey: "british_gcse",
+      acceptedQualificationTypeKeys: ["british_a_level"],
+    });
+
+    expect(passed.explanationAr).not.toBe(failed.explanationAr);
+  });
+});
+
 describe("renderDirectEvaluationRuleTraceExplanation — unsupported type", () => {
   it("throws on unsupported rule type", () => {
     expect(() =>

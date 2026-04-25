@@ -20,6 +20,8 @@ export interface RenderDirectEvaluationRuleTraceExplanationInput {
   requiredMinimumGradeValue?: number;
   actualValue?: number | null;
   requiredMinimumValue?: number;
+  actualQualificationTypeKey?: string;
+  acceptedQualificationTypeKeys?: readonly string[];
 }
 
 /** Result of rendering one rule trace Arabic explanation. */

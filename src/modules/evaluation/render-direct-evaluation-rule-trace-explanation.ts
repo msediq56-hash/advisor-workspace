@@ -10,6 +10,7 @@
  * - required_subject_exists (passed, failed, skipped)
  * - minimum_subject_grade (passed, failed, skipped)
  * - minimum_overall_grade (passed, failed, skipped)
+ * - accepted_qualification_type (passed, failed, skipped)
  *
  * Server-side only — do not import from client components.
  */
@@ -36,10 +37,12 @@ export function renderDirectEvaluationRuleTraceExplanation(
       return renderMinimumSubjectGrade(input);
     case "minimum_overall_grade":
       return renderMinimumOverallGrade(input);
+    case "accepted_qualification_type":
+      return renderAcceptedQualificationType(input);
     default:
       throw new Error(
         `Unsupported rule type for trace explanation: "${input.ruleTypeKey}". ` +
-        `Only "minimum_subject_count", "required_subject_exists", "minimum_subject_grade", and "minimum_overall_grade" are supported in the current baseline.`
+        `Only "minimum_subject_count", "required_subject_exists", "minimum_subject_grade", "minimum_overall_grade", and "accepted_qualification_type" are supported in the current baseline.`
       );
   }
 }
@@ -203,5 +206,43 @@ function renderMinimumOverallGrade(
 
   throw new Error(
     `Unsupported outcome "${input.outcome}" for minimum_overall_grade trace explanation.`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// accepted_qualification_type
+// ---------------------------------------------------------------------------
+
+function renderAcceptedQualificationType(
+  input: RenderDirectEvaluationRuleTraceExplanationInput
+): RenderDirectEvaluationRuleTraceExplanationResult {
+  if (input.outcome === "skipped") {
+    return {
+      explanationAr: "تم تخطي قاعدة نوع الشهادة المقبول — لم تُنفَّذ في النسخة الحالية.",
+    };
+  }
+
+  const actualPart = input.actualQualificationTypeKey
+    ? ` (${input.actualQualificationTypeKey})`
+    : "";
+  const acceptedPart =
+    input.acceptedQualificationTypeKeys && input.acceptedQualificationTypeKeys.length > 0
+      ? `: ${input.acceptedQualificationTypeKeys.join("، ")}`
+      : "";
+
+  if (input.outcome === "passed") {
+    return {
+      explanationAr: `نوع الشهادة${actualPart} مقبول ضمن الأنواع المعتمدة${acceptedPart}.`,
+    };
+  }
+
+  if (input.outcome === "failed") {
+    return {
+      explanationAr: `نوع الشهادة${actualPart} غير مقبول — الأنواع المعتمدة${acceptedPart}.`,
+    };
+  }
+
+  throw new Error(
+    `Unsupported outcome "${input.outcome}" for accepted_qualification_type trace explanation.`
   );
 }

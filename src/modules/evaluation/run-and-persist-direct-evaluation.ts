@@ -148,6 +148,8 @@ function resolveTraceExplanationAr(rule: {
   requiredMinimumGradeValue?: number;
   actualValue?: number | null;
   requiredMinimumValue?: number;
+  actualQualificationTypeKey?: string;
+  acceptedQualificationTypeKeys?: readonly string[];
 }): string {
   if (rule.ruleTypeKey === "minimum_subject_count") {
     return renderDirectEvaluationRuleTraceExplanation({
@@ -183,6 +185,15 @@ function resolveTraceExplanationAr(rule: {
       outcome: rule.outcome as "passed" | "failed" | "skipped",
       actualValue: rule.actualValue,
       requiredMinimumValue: rule.requiredMinimumValue,
+    }).explanationAr;
+  }
+
+  if (rule.ruleTypeKey === "accepted_qualification_type") {
+    return renderDirectEvaluationRuleTraceExplanation({
+      ruleTypeKey: rule.ruleTypeKey,
+      outcome: rule.outcome as "passed" | "failed" | "skipped",
+      actualQualificationTypeKey: rule.actualQualificationTypeKey,
+      acceptedQualificationTypeKeys: rule.acceptedQualificationTypeKeys,
     }).explanationAr;
   }
 
