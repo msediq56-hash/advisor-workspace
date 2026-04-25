@@ -1,0 +1,52 @@
+-- Migration 17: Governance RLS deny-by-default.
+--
+-- Enables Row Level Security on the two governance tables WITHOUT adding
+-- any SELECT/INSERT/UPDATE/DELETE policies. With RLS enabled and no
+-- policies, the default behavior for non-superuser roles is "no access" —
+-- this is the deny-by-default posture intentionally chosen for this slice.
+--
+-- Tables in scope:
+--   - validation_issues
+--   - audit_logs
+--
+-- Why deny-by-default:
+--   Neither table is currently used by any application service in src/.
+--   No service reads or writes either table from the RLS-aware client or
+--   the admin client. Consumer-aware governance access rules have not been
+--   designed yet, so any policy added now would be inventing semantics
+--   without a known consumer.
+--
+-- validation_issues:
+--   Uses a generic (parent_entity_type, parent_entity_id) reference pattern
+--   and has no organization_id column. Resolving an organization context
+--   from this generic reference would require dynamic per-entity-type join
+--   logic, which is dangerous to encode in an RLS policy without a known
+--   consumer. A future slice can either add organization_id to this table
+--   or introduce a SECURITY DEFINER helper that resolves parent ownership
+--   per entity_type when a real governance read surface is built.
+--
+-- audit_logs:
+--   Has a nullable organization_id column. Org-scoped rows have an obvious
+--   tenant; null rows represent platform-level audit events with no
+--   current consumer. Granting authenticated members SELECT on org-scoped
+--   rows is straightforward (`is_active_member_of(organization_id)`), but
+--   null/platform rows require a platform-admin role that does not yet
+--   exist in the codebase. Deferring that decision until the platform-admin
+--   model lands avoids encoding premature visibility semantics.
+--
+-- Service-role and SECURITY DEFINER paths:
+--   Both Supabase service_role connections (used by the admin client) and
+--   SECURITY DEFINER functions bypass RLS by default. Any future
+--   controlled server-side governance write or read service can still
+--   operate on these tables through those paths without further policy
+--   work.
+--
+-- Future work:
+--   - Add consumer-aware SELECT policy for audit_logs once a platform-admin
+--     role is designed.
+--   - Add organization_id (or per-entity-type resolution) to
+--     validation_issues paired with a SELECT policy when a real governance
+--     consumer surface exists.
+
+ALTER TABLE validation_issues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
