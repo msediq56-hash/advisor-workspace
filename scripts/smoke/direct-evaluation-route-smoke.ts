@@ -23,11 +23,18 @@
  *     ("advisor") returns 403 access_denied through requireActorAccess
  *     → requireOrgRole. Exact-match-only role inclusion (no hierarchy);
  *     the assertion uses ["owner"] to reliably exclude "advisor".
+ *   - Cross-organization sourceProfileId 403 (Milestone 2C.3): an
+ *     authenticated POST referencing a student_profiles row that exists
+ *     in a different organization than the resolved advisor org context
+ *     returns 403 access_denied via the same unified outward source-
+ *     profile failure as assertion E. The seed creates a foreign
+ *     organization and a foreign-org student_profiles row; the seeded
+ *     advisor is intentionally NOT a member of that organization.
  *
  * DOES NOT VALIDATE:
- *   - Cross-organization sourceProfileId, multi-active-membership
- *     selection (409 org_selection_required), RLS isolation. RLS coverage
- *     stays in Milestone 1 RLS migrations 00010–00017.
+ *   - Multi-active-membership selection (409 org_selection_required) and
+ *     RLS isolation. RLS coverage stays in Milestone 1 RLS migrations
+ *     00010–00017.
  *
  * PREREQUISITES:
  *   1. Local Supabase up: `npx supabase status`.
@@ -111,6 +118,13 @@ const SEEDED = {
   // sourceProfileId happy path. If you change this UUID, also change
   // ID.studentProfile in scripts/seed/demo-seed.ts.
   studentProfileId: "00000000-0000-0000-0000-000000000d70",
+  // Foreign-org sample student profile created by scripts/seed/demo-seed.ts
+  // (Milestone 2C.3). Used by assertion H to exercise the cross-org
+  // branch of the sourceProfileId ownership guard. The row exists in a
+  // different organization than the resolved advisor org context, so the
+  // guard rejects with 403 access_denied. If you change this UUID, also
+  // change ID.foreignStudentProfile in scripts/seed/demo-seed.ts.
+  foreignStudentProfileId: "00000000-0000-0000-0000-000000000d81",
 } as const;
 
 const ROUTE_PATH = "/api/direct-evaluation";
@@ -618,6 +632,45 @@ async function assertG_RoleBasedAccessDenied(cookieHeader: string): Promise<void
   );
 }
 
+async function assertH_CrossOrgSourceProfile(cookieHeader: string): Promise<void> {
+  // Same authenticated cookie + same valid happy-path British payload, but
+  // sourceProfileId references the foreign-org seeded student_profiles row.
+  // The row exists, so the admin lookup succeeds, but its organization_id
+  // belongs to a DIFFERENT organization than the resolved advisor org
+  // context. The ownership guard
+  // (src/modules/evaluation/invoke-direct-evaluation-workflow.ts) must
+  // throw "Source profile access denied: …", which the route classifier
+  // maps to 403 access_denied.
+  //
+  // Distinct from assertion E: E exercises the "row missing entirely"
+  // branch via a random UUID; H exercises the "row exists but belongs to
+  // a different organization" branch. Both surface as the same unified
+  // outward access_denied so the foreign org's identity is not leaked.
+  const crossOrgBody = {
+    ...HAPPY_REQUEST_BODY,
+    sourceProfileId: SEEDED.foreignStudentProfileId,
+  };
+
+  const { status, body, rawText } = await postRoute({
+    rawBody: JSON.stringify(crossOrgBody),
+    cookieHeader,
+  });
+
+  if (status !== 403) {
+    fail(
+      "H: cross-org sourceProfileId status",
+      `expected 403 but got ${status}: ${rawText.slice(0, 500)}`,
+    );
+  }
+  // Only the typed code is asserted; the message text comes from the
+  // ownership guard and is intentionally not pinned here.
+  expectErrorBody("H: cross-org sourceProfileId error body", body, "access_denied");
+  pass(
+    "H: cross-org sourceProfileId rejected — foreign-org profile exists but is not in resolved org",
+    "403 access_denied (unified outward message)",
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -647,6 +700,7 @@ async function main() {
   await assertE_SourceProfileGuard(cookieHeader);
   await assertF_MatchingOrgSourceProfile(cookieHeader);
   await assertG_RoleBasedAccessDenied(cookieHeader);
+  await assertH_CrossOrgSourceProfile(cookieHeader);
 
   console.log("\n--- Summary ---");
   const okCount = results.filter((r) => r.ok).length;

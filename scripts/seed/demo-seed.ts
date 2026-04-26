@@ -133,6 +133,15 @@ const ID = {
   //   2. the FK target for evaluation_runs.source_profile_id at insert time.
   // No student_profile_answers / student_profile_subjects rows are created.
   studentProfile: "00000000-0000-0000-0000-000000000d70",
+
+  // Foreign organization + foreign-org student profile (Milestone 2C.3).
+  // Exist only so the route-level smoke can exercise the cross-org branch
+  // of the sourceProfileId ownership guard (assertion H → 403 access_denied).
+  // The seeded advisor MUST NOT have a membership in foreignOrganization;
+  // adding one would give the advisor multiple active memberships and break
+  // assertions A / F / G via 409 org_selection_required.
+  foreignOrganization: "00000000-0000-0000-0000-000000000d80",
+  foreignStudentProfile: "00000000-0000-0000-0000-000000000d81",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -393,6 +402,66 @@ async function seedSampleStudentProfile(advisorAuthId: string) {
   });
   pass(
     "seed student_profiles (sample, same-org, owned by advisor) — route-smoke ownership target",
+  );
+}
+
+async function seedForeignOrgAndStudentProfile(advisorAuthId: string) {
+  // Foreign organization + foreign-org student_profiles row for the
+  // route-level smoke's CROSS-ORG sourceProfileId rejection path
+  // (Milestone 2C.3, assertion H). The route's ownership guard reads
+  // `student_profiles.organization_id` and compares it against the
+  // resolved advisor org context; mismatch → unified
+  // "Source profile access denied" → 403 access_denied.
+  //
+  // CRITICAL invariants that must NOT be violated:
+  //   - The seeded advisor MUST NOT have an organization_memberships row
+  //     in foreignOrganization. If they did, they would have multiple
+  //     active memberships and resolveOrgContext would return
+  //     `multiple_active_memberships_requires_selection` (409
+  //     org_selection_required) for any request that omits
+  //     evaluation.organizationId, breaking route-smoke assertions
+  //     A, F, and G.
+  //   - No student_profile_answers / student_profile_subjects rows are
+  //     created. The route guard reads only organization_id and the
+  //     runtime evaluates the request payload, not saved profile content.
+  //
+  // Must run AFTER seedOrganization (user_profiles) and seedQualification
+  // (qualification_types) because of FKs:
+  //   - student_profiles.organization_id        → organizations(id)
+  //                                                (the new foreign org)
+  //   - student_profiles.created_by_user_id     → user_profiles(id)
+  //                                                (reuses advisorAuthId
+  //                                                — see note below)
+  //   - student_profiles.qualification_type_id  → qualification_types(id)
+  //                                                (reuses the existing
+  //                                                British A-Level type)
+  await upsertById("organizations", {
+    id: ID.foreignOrganization,
+    slug: "foreign-demo-org",
+    name_ar: "منظمة عرض أجنبية",
+    status: "active",
+  });
+  pass(
+    "seed organizations (foreign-demo-org) — no advisor membership by design",
+  );
+
+  // created_by_user_id reuses advisorAuthId only as a minimal FK value.
+  // user_profiles has no FK back to auth.users in the schema (the comment
+  // on user_profiles.id documents the convention but does not enforce it),
+  // and the route's ownership guard reads only organization_id, never
+  // created_by_user_id. So reusing advisorAuthId here is a fixture-only
+  // shortcut; it does NOT imply the advisor is a member of foreignOrganization
+  // and it does NOT change any auth/access semantics.
+  await upsertById("student_profiles", {
+    id: ID.foreignStudentProfile,
+    organization_id: ID.foreignOrganization,
+    created_by_user_id: advisorAuthId,
+    profile_kind: "sample",
+    qualification_type_id: ID.qualTypeBritishALevel,
+    title_ar: "ملف عرض أجنبي - علوم الحاسوب (British A-Level)",
+  });
+  pass(
+    "seed student_profiles (foreign-org sample) — route-smoke H cross-org ownership target",
   );
 }
 
@@ -659,6 +728,8 @@ async function verifyExpectedRows() {
     { table: "rules", id: ID.ruleRequiredSubjectExists },
     { table: "rules", id: ID.ruleMinSubjectGrade },
     { table: "student_profiles", id: ID.studentProfile },
+    { table: "organizations", id: ID.foreignOrganization },
+    { table: "student_profiles", id: ID.foreignStudentProfile },
   ];
 
   for (const c of checks) {
@@ -781,6 +852,7 @@ async function main() {
   await seedRuleTypes();
   await seedRuleRegistry(advisorAuthId);
   await seedSampleStudentProfile(advisorAuthId);
+  await seedForeignOrgAndStudentProfile(advisorAuthId);
 
   await verifyAdvisorIdentityMatches(advisorAuthId);
   await verifyExpectedRows();
@@ -803,7 +875,9 @@ async function main() {
       `\nDemo advisor auth id: ${advisorAuthId}` +
       `\nProgram offering id: ${ID.programOffering}` +
       `\nQualification type key: british_a_level` +
-      `\nSample student profile id: ${ID.studentProfile}`,
+      `\nSample student profile id: ${ID.studentProfile}` +
+      `\nForeign organization id: ${ID.foreignOrganization}` +
+      `\nForeign student profile id: ${ID.foreignStudentProfile}`,
   );
 }
 
