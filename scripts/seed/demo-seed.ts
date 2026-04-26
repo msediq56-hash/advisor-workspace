@@ -123,6 +123,16 @@ const ID = {
   ruleMinSubjectCount: "00000000-0000-0000-0000-000000000d62",
   ruleRequiredSubjectExists: "00000000-0000-0000-0000-000000000d63",
   ruleMinSubjectGrade: "00000000-0000-0000-0000-000000000d64",
+
+  // Student profile (sample, same-org). Exists only so the route-level smoke
+  // can exercise the matching-org sourceProfileId happy path against the
+  // ownership guard. NOT a student dashboard, application tracking, or CRM
+  // surface — it is a single root row whose only consumers are:
+  //   1. invokeDirectEvaluationWorkflow's sourceProfileId ownership guard
+  //      (reads only `student_profiles.organization_id`), and
+  //   2. the FK target for evaluation_runs.source_profile_id at insert time.
+  // No student_profile_answers / student_profile_subjects rows are created.
+  studentProfile: "00000000-0000-0000-0000-000000000d70",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -356,6 +366,34 @@ async function seedOrganization(advisorAuthId: string) {
     internal_note_ar: null,
   });
   pass("seed organization_offering_settings (overlay → CS offering)");
+
+}
+
+async function seedSampleStudentProfile(advisorAuthId: string) {
+  // Sample same-org student_profiles row for the route-level smoke's
+  // matching-org sourceProfileId happy path. The route's ownership guard
+  // (src/modules/evaluation/invoke-direct-evaluation-workflow.ts) reads only
+  // `organization_id`; the runtime evaluates the request payload, not the
+  // saved profile content. Therefore no `student_profile_answers` or
+  // `student_profile_subjects` rows are needed and none are created.
+  // `profile_status` defaults to 'draft', `created_at` / `updated_at` to now().
+  //
+  // Must run AFTER seedOrganization (org + user_profile) and
+  // seedQualification (qualification_types) because of FKs:
+  //   - student_profiles.organization_id        → organizations(id)
+  //   - student_profiles.created_by_user_id     → user_profiles(id)
+  //   - student_profiles.qualification_type_id  → qualification_types(id)
+  await upsertById("student_profiles", {
+    id: ID.studentProfile,
+    organization_id: ID.organization,
+    created_by_user_id: advisorAuthId,
+    profile_kind: "sample",
+    qualification_type_id: ID.qualTypeBritishALevel,
+    title_ar: "ملف عرض - علوم الحاسوب (British A-Level)",
+  });
+  pass(
+    "seed student_profiles (sample, same-org, owned by advisor) — route-smoke ownership target",
+  );
 }
 
 async function seedQualification() {
@@ -620,6 +658,7 @@ async function verifyExpectedRows() {
     { table: "rules", id: ID.ruleMinSubjectCount },
     { table: "rules", id: ID.ruleRequiredSubjectExists },
     { table: "rules", id: ID.ruleMinSubjectGrade },
+    { table: "student_profiles", id: ID.studentProfile },
   ];
 
   for (const c of checks) {
@@ -741,6 +780,7 @@ async function main() {
   await seedQualification();
   await seedRuleTypes();
   await seedRuleRegistry(advisorAuthId);
+  await seedSampleStudentProfile(advisorAuthId);
 
   await verifyAdvisorIdentityMatches(advisorAuthId);
   await verifyExpectedRows();
@@ -762,7 +802,8 @@ async function main() {
     `\nDemo advisor email: ${ADVISOR_EMAIL}` +
       `\nDemo advisor auth id: ${advisorAuthId}` +
       `\nProgram offering id: ${ID.programOffering}` +
-      `\nQualification type key: british_a_level`,
+      `\nQualification type key: british_a_level` +
+      `\nSample student profile id: ${ID.studentProfile}`,
   );
 }
 

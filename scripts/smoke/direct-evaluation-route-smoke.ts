@@ -14,14 +14,12 @@
  *     401 authentication_required, 403 access_denied (sourceProfileId guard)
  *   - Happy-path persistence through the route — one run, one result, four
  *     traces written through persist_direct_evaluation_run_atomic
+ *   - Matching-org non-null sourceProfileId happy path: an authenticated
+ *     POST that references the seeded same-org student_profiles row
+ *     (added in Milestone 2C.1) passes the ownership guard and persists,
+ *     and the FK on evaluation_runs.source_profile_id is satisfied.
  *
  * DOES NOT VALIDATE:
- *   - Matching-org non-null sourceProfileId happy path. Exercising a
- *     successful, organization-owned student profile linkage would require
- *     adding one student_profiles row scoped to the seeded organization.
- *     That is a tiny separate seed-extension slice and is intentionally out
- *     of scope here. The 403 boundary failure (random / nonexistent UUID
- *     UNIFIED outward as access_denied) IS validated below.
  *   - Cross-organization isolation, role-based 403, multi-membership
  *     selection, RLS isolation. RLS coverage stays in Milestone 1 RLS
  *     migrations 00010–00017.
@@ -103,6 +101,11 @@ const SEEDED = {
   countryDeId: "00000000-0000-0000-0000-000000000d01",
   programOfferingId: "00000000-0000-0000-0000-000000000d12",
   qualificationTypeKey: "british_a_level",
+  // Same-org sample student profile created by scripts/seed/demo-seed.ts
+  // (Milestone 2C.1). Used by assertion F to exercise the matching-org
+  // sourceProfileId happy path. If you change this UUID, also change
+  // ID.studentProfile in scripts/seed/demo-seed.ts.
+  studentProfileId: "00000000-0000-0000-0000-000000000d70",
 } as const;
 
 const ROUTE_PATH = "/api/direct-evaluation";
@@ -497,6 +500,72 @@ async function assertE_SourceProfileGuard(cookieHeader: string): Promise<void> {
   );
 }
 
+async function assertF_MatchingOrgSourceProfile(cookieHeader: string): Promise<void> {
+  // Same authenticated cookie, same valid British payload, but the
+  // sourceProfileId references the seeded same-org student_profiles row.
+  // Expected: ownership guard passes; runtime evaluates the request payload
+  // unchanged; persistence inserts the run with source_profile_id set
+  // (FK on evaluation_runs.source_profile_id is satisfied).
+  const matchingOrgBody = {
+    ...HAPPY_REQUEST_BODY,
+    sourceProfileId: SEEDED.studentProfileId,
+  };
+
+  const { status, body, rawText } = await postRoute({
+    rawBody: JSON.stringify(matchingOrgBody),
+    cookieHeader,
+  });
+
+  if (status !== 200) {
+    fail(
+      "F: matching-org sourceProfileId status",
+      `expected 200 but got ${status}: ${rawText.slice(0, 500)}`,
+    );
+  }
+
+  if (!body || typeof body !== "object") {
+    fail(
+      "F: response shape",
+      `body is not an object: ${rawText.slice(0, 500)}`,
+    );
+  }
+  const obj = body as Record<string, unknown>;
+  const runtime = obj.runtime as Record<string, unknown> | undefined;
+  const assembled = runtime?.assembled as Record<string, unknown> | undefined;
+  if (!assembled || assembled.finalStatus !== "eligible") {
+    fail(
+      "F: runtime.assembled.finalStatus",
+      `expected "eligible" but got "${assembled?.finalStatus}"`,
+    );
+  }
+
+  const persistence = obj.persistence as Record<string, unknown> | undefined;
+  if (
+    !persistence ||
+    typeof persistence.evaluationRunId !== "string" ||
+    persistence.evaluationRunId.length === 0
+  ) {
+    fail("F: persistence.evaluationRunId", "missing or empty");
+  }
+  if (
+    typeof persistence.evaluationResultId !== "string" ||
+    persistence.evaluationResultId.length === 0
+  ) {
+    fail("F: persistence.evaluationResultId", "missing or empty");
+  }
+  if (persistence.persistedRuleTraceCount !== 4) {
+    fail(
+      "F: persistence.persistedRuleTraceCount",
+      `expected 4 but got ${persistence.persistedRuleTraceCount}`,
+    );
+  }
+
+  pass(
+    "F: matching-org sourceProfileId accepted",
+    `200 OK, finalStatus=eligible, runId=${persistence.evaluationRunId}, resultId=${persistence.evaluationResultId}, traces=4`,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -524,6 +593,7 @@ async function main() {
   await assertC_InvalidJson(cookieHeader);
   await assertD_InvalidRequestShape(cookieHeader);
   await assertE_SourceProfileGuard(cookieHeader);
+  await assertF_MatchingOrgSourceProfile(cookieHeader);
 
   console.log("\n--- Summary ---");
   const okCount = results.filter((r) => r.ok).length;
