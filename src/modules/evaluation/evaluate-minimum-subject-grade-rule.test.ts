@@ -14,6 +14,9 @@ import type { PreparedBritishDirectEvaluation } from "@/types/prepared-british-d
 // Fixtures
 // ---------------------------------------------------------------------------
 
+// gradeValue is on the canonical British runtime ordinal scale
+// (A* = 8, A = 7, B = 6, C = 5, D = 4, E = 3, F = 2, G = 1, U = 0).
+// gradeNormalizedKey is uppercase, matching the real normalizer.
 function makeSubject(name: string, gradeValue: number) {
   return {
     subjectName: name,
@@ -21,7 +24,7 @@ function makeSubject(name: string, gradeValue: number) {
     segmentKey: "a_level" as const,
     subjectLevelKey: "a_level",
     grade: "A",
-    gradeNormalizedKey: "a",
+    gradeNormalizedKey: "A",
     normalizedGradeValue: gradeValue,
     isCountable: true,
     notesAr: null,
@@ -65,57 +68,61 @@ describe("evaluateMinimumSubjectGradeRule", () => {
   // -----------------------------------------------------------------------
 
   it("passes when matching subject meets the minimum grade threshold", () => {
-    const prepared = makePrepared([makeSubject("mathematics", 80)]);
+    // mathematics A (7) ≥ threshold B (6)
+    const prepared = makePrepared([makeSubject("mathematics", 7)]);
     const result = evaluateMinimumSubjectGradeRule({
       ...BASE_PARAMS,
       prepared,
-      ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 70 },
+      ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 6 },
     });
 
     expect(result.outcome).toBe("passed");
     expect(result.matchedSubjectName).toBe("mathematics");
-    expect(result.matchedGradeValue).toBe(80);
-    expect(result.requiredMinimumGradeValue).toBe(70);
+    expect(result.matchedGradeValue).toBe(7);
+    expect(result.requiredMinimumGradeValue).toBe(6);
   });
 
   it("passes when matching subject exactly meets the threshold", () => {
-    const prepared = makePrepared([makeSubject("physics", 75)]);
+    // physics B (6) == threshold B (6)
+    const prepared = makePrepared([makeSubject("physics", 6)]);
     const result = evaluateMinimumSubjectGradeRule({
       ...BASE_PARAMS,
       prepared,
-      ruleConfig: { subjectNameNormalized: "physics", minimumGradeValue: 75 },
+      ruleConfig: { subjectNameNormalized: "physics", minimumGradeValue: 6 },
     });
 
     expect(result.outcome).toBe("passed");
-    expect(result.matchedGradeValue).toBe(75);
+    expect(result.matchedGradeValue).toBe(6);
   });
 
   it("fails when matching subject is below the threshold", () => {
-    const prepared = makePrepared([makeSubject("chemistry", 60)]);
+    // chemistry C (5) < threshold B (6)
+    const prepared = makePrepared([makeSubject("chemistry", 5)]);
     const result = evaluateMinimumSubjectGradeRule({
       ...BASE_PARAMS,
       prepared,
-      ruleConfig: { subjectNameNormalized: "chemistry", minimumGradeValue: 70 },
+      ruleConfig: { subjectNameNormalized: "chemistry", minimumGradeValue: 6 },
     });
 
     expect(result.outcome).toBe("failed");
     expect(result.matchedSubjectName).toBe("chemistry");
-    expect(result.matchedGradeValue).toBe(60);
-    expect(result.requiredMinimumGradeValue).toBe(70);
+    expect(result.matchedGradeValue).toBe(5);
+    expect(result.requiredMinimumGradeValue).toBe(6);
   });
 
   it("fails when no matching subject exists", () => {
-    const prepared = makePrepared([makeSubject("biology", 90)]);
+    // Profile only has biology (irrelevant grade); rule requires mathematics.
+    const prepared = makePrepared([makeSubject("biology", 8)]);
     const result = evaluateMinimumSubjectGradeRule({
       ...BASE_PARAMS,
       prepared,
-      ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 70 },
+      ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 6 },
     });
 
     expect(result.outcome).toBe("failed");
     expect(result.matchedSubjectName).toBeNull();
     expect(result.matchedGradeValue).toBeNull();
-    expect(result.requiredMinimumGradeValue).toBe(70);
+    expect(result.requiredMinimumGradeValue).toBe(6);
   });
 
   // -----------------------------------------------------------------------
@@ -123,11 +130,12 @@ describe("evaluateMinimumSubjectGradeRule", () => {
   // -----------------------------------------------------------------------
 
   it("matches subject names case-insensitively", () => {
-    const prepared = makePrepared([makeSubject("Mathematics", 80)]);
+    // mathematics A (7) ≥ threshold B (6)
+    const prepared = makePrepared([makeSubject("Mathematics", 7)]);
     const result = evaluateMinimumSubjectGradeRule({
       ...BASE_PARAMS,
       prepared,
-      ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 70 },
+      ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 6 },
     });
 
     expect(result.outcome).toBe("passed");
@@ -135,11 +143,12 @@ describe("evaluateMinimumSubjectGradeRule", () => {
   });
 
   it("trims whitespace from subject names for matching", () => {
-    const prepared = makePrepared([makeSubject("  physics  ", 80)]);
+    // physics A (7) ≥ threshold B (6)
+    const prepared = makePrepared([makeSubject("  physics  ", 7)]);
     const result = evaluateMinimumSubjectGradeRule({
       ...BASE_PARAMS,
       prepared,
-      ruleConfig: { subjectNameNormalized: "physics", minimumGradeValue: 70 },
+      ruleConfig: { subjectNameNormalized: "physics", minimumGradeValue: 6 },
     });
 
     expect(result.outcome).toBe("passed");
@@ -150,19 +159,21 @@ describe("evaluateMinimumSubjectGradeRule", () => {
   // -----------------------------------------------------------------------
 
   it("uses the first matching subject when multiple exist", () => {
+    // First mathematics is C (5), second is A* (8); threshold is B (6).
+    // The evaluator must use the first match, so the result is failed.
     const prepared = makePrepared([
-      makeSubject("mathematics", 60),
-      makeSubject("mathematics", 90),
+      makeSubject("mathematics", 5),
+      makeSubject("mathematics", 8),
     ]);
     const result = evaluateMinimumSubjectGradeRule({
       ...BASE_PARAMS,
       prepared,
-      ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 70 },
+      ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 6 },
     });
 
-    // First match has grade 60, below threshold
+    // First match has grade 5 (C), below threshold 6 (B)
     expect(result.outcome).toBe("failed");
-    expect(result.matchedGradeValue).toBe(60);
+    expect(result.matchedGradeValue).toBe(5);
   });
 
   // -----------------------------------------------------------------------
@@ -186,7 +197,7 @@ describe("evaluateMinimumSubjectGradeRule", () => {
       evaluateMinimumSubjectGradeRule({
         ...BASE_PARAMS,
         prepared,
-        ruleConfig: { minimumGradeValue: 70 },
+        ruleConfig: { minimumGradeValue: 6 },
       })
     ).toThrow("subjectNameNormalized");
   });

@@ -156,9 +156,9 @@ describe(`Golden: ${GOLDEN_NOT_ELIGIBLE.label}`, () => {
   it("grade rule trace explanation contains the actual and required grade values", () => {
     const gradeExplanation = result.traceExplanations["r-grade"];
     expect(gradeExplanation).toBeTruthy();
-    // Student has grade 80, threshold is 90
-    expect(gradeExplanation).toContain("80");
-    expect(gradeExplanation).toContain("90");
+    // Student has grade 7 (A), threshold is 8 (A*) on the canonical British ordinal scale.
+    expect(gradeExplanation).toContain("7");
+    expect(gradeExplanation).toContain("8");
   });
 
   it("has one failed blocking group", () => {
@@ -211,9 +211,9 @@ describe(`Golden: ${GOLDEN_CONDITIONAL.label}`, () => {
   it("physics grade trace explanation shows the grade gap", () => {
     const physicsExplanation = result.traceExplanations["r-grade-physics"];
     expect(physicsExplanation).toBeTruthy();
-    // Physics grade is 70, threshold is 75
-    expect(physicsExplanation).toContain("70");
-    expect(physicsExplanation).toContain("75");
+    // Physics grade is 6 (B), threshold is 7 (A) on the canonical British ordinal scale.
+    expect(physicsExplanation).toContain("6");
+    expect(physicsExplanation).toContain("7");
   });
 
   it("has zero failed blocking groups and one conditional group", () => {
@@ -271,9 +271,9 @@ describe(`Golden: ${GOLDEN_NEEDS_REVIEW.label}`, () => {
   it("chemistry grade trace explanation shows the grade gap", () => {
     const chemExplanation = result.traceExplanations["r-grade-chemistry"];
     expect(chemExplanation).toBeTruthy();
-    // Chemistry grade is 60, threshold is 65
-    expect(chemExplanation).toContain("60");
-    expect(chemExplanation).toContain("65");
+    // Chemistry grade is 5 (C), threshold is 6 (B) on the canonical British ordinal scale.
+    expect(chemExplanation).toContain("5");
+    expect(chemExplanation).toContain("6");
   });
 
   it("has one failed review group and zero conditional groups", () => {
@@ -341,9 +341,9 @@ describe(`Golden: ${GOLDEN_ADVISORY_NON_DOWNGRADE.label}`, () => {
   it("biology grade trace explanation shows the grade gap", () => {
     const bioExplanation = result.traceExplanations["r-grade-biology"];
     expect(bioExplanation).toBeTruthy();
-    // Biology grade is 70, threshold is 75
-    expect(bioExplanation).toContain("70");
-    expect(bioExplanation).toContain("75");
+    // Biology grade is 6 (B), threshold is 7 (A) on the canonical British ordinal scale.
+    expect(bioExplanation).toContain("6");
+    expect(bioExplanation).toContain("7");
   });
 
   it("matched rules count reflects only blocking group passes", () => {

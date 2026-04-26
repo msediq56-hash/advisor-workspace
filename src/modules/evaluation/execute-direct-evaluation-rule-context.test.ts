@@ -564,11 +564,12 @@ describe("executeDirectEvaluationRuleContext", () => {
   // -----------------------------------------------------------------------
 
   it("evaluates minimum_subject_grade as passed for British input", () => {
+    // Canonical British ordinal scale: matched A (7) ≥ threshold B (6).
     mockEvalMinGrade.mockReturnValue({
       outcome: "passed",
       matchedSubjectName: "mathematics",
-      matchedGradeValue: 80,
-      requiredMinimumGradeValue: 70,
+      matchedGradeValue: 7,
+      requiredMinimumGradeValue: 6,
     });
 
     const result = executeDirectEvaluationRuleContext({
@@ -580,7 +581,7 @@ describe("executeDirectEvaluationRuleContext", () => {
           groupEvaluationMode: "all_required",
           orderIndex: 0,
           rules: [
-            { ruleId: "r-1", ruleTypeKey: "minimum_subject_grade", ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 70 }, orderIndex: 0 },
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_grade", ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 6 }, orderIndex: 0 },
           ],
         },
       ]),
@@ -589,17 +590,18 @@ describe("executeDirectEvaluationRuleContext", () => {
     expect(mockEvalMinGrade).toHaveBeenCalledOnce();
     expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("passed");
     expect(result.groupExecutions[0].ruleExecutions[0].matchedSubjectName).toBe("mathematics");
-    expect(result.groupExecutions[0].ruleExecutions[0].matchedGradeValue).toBe(80);
-    expect(result.groupExecutions[0].ruleExecutions[0].requiredMinimumGradeValue).toBe(70);
+    expect(result.groupExecutions[0].ruleExecutions[0].matchedGradeValue).toBe(7);
+    expect(result.groupExecutions[0].ruleExecutions[0].requiredMinimumGradeValue).toBe(6);
     expect(result.groupExecutions[0].groupOutcome).toBe("passed");
   });
 
   it("evaluates minimum_subject_grade as failed for British input", () => {
+    // Canonical British ordinal scale: matched C (5) < threshold B (6).
     mockEvalMinGrade.mockReturnValue({
       outcome: "failed",
       matchedSubjectName: "mathematics",
-      matchedGradeValue: 60,
-      requiredMinimumGradeValue: 70,
+      matchedGradeValue: 5,
+      requiredMinimumGradeValue: 6,
     });
 
     const result = executeDirectEvaluationRuleContext({
@@ -611,15 +613,15 @@ describe("executeDirectEvaluationRuleContext", () => {
           groupEvaluationMode: "all_required",
           orderIndex: 0,
           rules: [
-            { ruleId: "r-1", ruleTypeKey: "minimum_subject_grade", ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 70 }, orderIndex: 0 },
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_grade", ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 6 }, orderIndex: 0 },
           ],
         },
       ]),
     });
 
     expect(result.groupExecutions[0].ruleExecutions[0].outcome).toBe("failed");
-    expect(result.groupExecutions[0].ruleExecutions[0].matchedGradeValue).toBe(60);
-    expect(result.groupExecutions[0].ruleExecutions[0].requiredMinimumGradeValue).toBe(70);
+    expect(result.groupExecutions[0].ruleExecutions[0].matchedGradeValue).toBe(5);
+    expect(result.groupExecutions[0].ruleExecutions[0].requiredMinimumGradeValue).toBe(6);
     expect(result.groupExecutions[0].groupOutcome).toBe("failed");
   });
 
@@ -637,7 +639,7 @@ describe("executeDirectEvaluationRuleContext", () => {
           groupEvaluationMode: "all_required",
           orderIndex: 0,
           rules: [
-            { ruleId: "r-1", ruleTypeKey: "minimum_subject_grade", ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 70 }, orderIndex: 0 },
+            { ruleId: "r-1", ruleTypeKey: "minimum_subject_grade", ruleConfig: { subjectNameNormalized: "mathematics", minimumGradeValue: 6 }, orderIndex: 0 },
           ],
         },
       ]),

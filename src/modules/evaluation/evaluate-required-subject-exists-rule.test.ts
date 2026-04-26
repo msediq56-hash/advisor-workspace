@@ -22,7 +22,7 @@ function makeSubject(
     segmentKey: "a_level",
     subjectLevelKey: "a_level",
     grade: "A",
-    gradeNormalizedKey: "a",
+    gradeNormalizedKey: "A",
     normalizedGradeValue: 7,
     isCountable: true,
     notesAr: null,

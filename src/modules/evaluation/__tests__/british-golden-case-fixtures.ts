@@ -27,6 +27,9 @@ const BRITISH_NORMALIZED_PROFILE = {
     graduationYear: 2025,
     notesAr: null,
   },
+  // Grade values use the canonical British runtime ordinal scale
+  // (A* = 8, A = 7, B = 6, C = 5, D = 4, E = 3, F = 2, G = 1, U = 0).
+  // gradeNormalizedKey is uppercase, matching the real normalizer.
   subjects: [
     {
       subjectName: "Mathematics",
@@ -34,8 +37,8 @@ const BRITISH_NORMALIZED_PROFILE = {
       segmentKey: "a_level" as const,
       subjectLevelKey: "a_level",
       grade: "A",
-      gradeNormalizedKey: "a",
-      normalizedGradeValue: 80,
+      gradeNormalizedKey: "A",
+      normalizedGradeValue: 7,
       isCountable: true,
       notesAr: null,
     },
@@ -45,8 +48,8 @@ const BRITISH_NORMALIZED_PROFILE = {
       segmentKey: "a_level" as const,
       subjectLevelKey: "a_level",
       grade: "B",
-      gradeNormalizedKey: "b",
-      normalizedGradeValue: 70,
+      gradeNormalizedKey: "B",
+      normalizedGradeValue: 6,
       isCountable: true,
       notesAr: null,
     },
@@ -56,8 +59,8 @@ const BRITISH_NORMALIZED_PROFILE = {
       segmentKey: "a_level" as const,
       subjectLevelKey: "a_level",
       grade: "C",
-      gradeNormalizedKey: "c",
-      normalizedGradeValue: 60,
+      gradeNormalizedKey: "C",
+      normalizedGradeValue: 5,
       isCountable: true,
       notesAr: null,
     },
@@ -67,8 +70,8 @@ const BRITISH_NORMALIZED_PROFILE = {
       segmentKey: "a_level" as const,
       subjectLevelKey: "a_level",
       grade: "B",
-      gradeNormalizedKey: "b",
-      normalizedGradeValue: 70,
+      gradeNormalizedKey: "B",
+      normalizedGradeValue: 6,
       isCountable: true,
       notesAr: null,
     },
@@ -78,8 +81,8 @@ const BRITISH_NORMALIZED_PROFILE = {
       segmentKey: "as_level" as const,
       subjectLevelKey: "as_level",
       grade: "B",
-      gradeNormalizedKey: "b",
-      normalizedGradeValue: 70,
+      gradeNormalizedKey: "B",
+      normalizedGradeValue: 6,
       isCountable: true,
       notesAr: null,
     },
@@ -127,7 +130,7 @@ function makeResolvedContext(
 // ---------------------------------------------------------------------------
 // GOLDEN CASE 1: eligible
 // ---------------------------------------------------------------------------
-// Student has 5 countable subjects, mathematics exists, mathematics grade 80 ≥ 70.
+// Student has 5 countable subjects, mathematics exists, mathematics grade 7 (A) ≥ 6 (B).
 // All rules pass in one blocking group.
 
 export const GOLDEN_ELIGIBLE = {
@@ -163,7 +166,8 @@ export const GOLDEN_ELIGIBLE = {
           ruleTypeKey: "minimum_subject_grade",
           ruleConfig: {
             subjectNameNormalized: "mathematics",
-            minimumGradeValue: 70,
+            // Threshold 6 (B). Mathematics is 7 (A) → passes.
+            minimumGradeValue: 6,
           },
           orderIndex: 2,
         },
@@ -184,8 +188,8 @@ export const GOLDEN_ELIGIBLE = {
 // ---------------------------------------------------------------------------
 // GOLDEN CASE 2: not_eligible
 // ---------------------------------------------------------------------------
-// Same student, but the minimum_subject_grade threshold for mathematics is 90.
-// Student has 80. Blocking group fails → not_eligible.
+// Same student, but the minimum_subject_grade threshold for mathematics is 8 (A*).
+// Student has 7 (A). Blocking group fails → not_eligible.
 
 export const GOLDEN_NOT_ELIGIBLE = {
   label: "British student not eligible — minimum grade threshold not met in blocking group",
@@ -220,7 +224,8 @@ export const GOLDEN_NOT_ELIGIBLE = {
           ruleTypeKey: "minimum_subject_grade",
           ruleConfig: {
             subjectNameNormalized: "mathematics",
-            minimumGradeValue: 90,
+            // Threshold 8 (A*). Mathematics is 7 (A) → fails.
+            minimumGradeValue: 8,
           },
           orderIndex: 2,
         },
@@ -242,7 +247,7 @@ export const GOLDEN_NOT_ELIGIBLE = {
 // GOLDEN CASE 3: conditional
 // ---------------------------------------------------------------------------
 // Student passes all blocking rules but fails a conditional group's
-// minimum_subject_grade rule (Physics grade 70 < required 75).
+// minimum_subject_grade rule (Physics grade 6 (B) < required 7 (A)).
 
 export const GOLDEN_CONDITIONAL = {
   label: "British student conditional — blocking passes but conditional group fails",
@@ -286,7 +291,8 @@ export const GOLDEN_CONDITIONAL = {
           ruleTypeKey: "minimum_subject_grade",
           ruleConfig: {
             subjectNameNormalized: "physics",
-            minimumGradeValue: 75,
+            // Threshold 7 (A). Physics is 6 (B) → fails.
+            minimumGradeValue: 7,
           },
           orderIndex: 0,
         },
@@ -308,7 +314,7 @@ export const GOLDEN_CONDITIONAL = {
 // GOLDEN CASE 4: needs_review
 // ---------------------------------------------------------------------------
 // Student passes blocking requirements but fails a review-severity group's
-// minimum_subject_grade rule (Chemistry grade 60 < required 65).
+// minimum_subject_grade rule (Chemistry grade 5 (C) < required 6 (B)).
 // Review severity failure → needs_review.
 
 export const GOLDEN_NEEDS_REVIEW = {
@@ -353,7 +359,8 @@ export const GOLDEN_NEEDS_REVIEW = {
           ruleTypeKey: "minimum_subject_grade",
           ruleConfig: {
             subjectNameNormalized: "chemistry",
-            minimumGradeValue: 65,
+            // Threshold 6 (B). Chemistry is 5 (C) → fails.
+            minimumGradeValue: 6,
           },
           orderIndex: 0,
         },
@@ -375,7 +382,7 @@ export const GOLDEN_NEEDS_REVIEW = {
 // GOLDEN CASE 5: advisory non-downgrade
 // ---------------------------------------------------------------------------
 // Student passes all blocking rules. An advisory-severity group fails
-// (minimum_subject_grade for Biology: 70 < 75). Advisory failures do NOT
+// (minimum_subject_grade for Biology: 6 (B) < 7 (A)). Advisory failures do NOT
 // downgrade final status away from eligible. Advisory notes should be present.
 
 export const GOLDEN_ADVISORY_NON_DOWNGRADE = {
@@ -420,7 +427,8 @@ export const GOLDEN_ADVISORY_NON_DOWNGRADE = {
           ruleTypeKey: "minimum_subject_grade",
           ruleConfig: {
             subjectNameNormalized: "biology",
-            minimumGradeValue: 75,
+            // Threshold 7 (A). Biology is 6 (B) → fails.
+            minimumGradeValue: 7,
           },
           orderIndex: 0,
         },
