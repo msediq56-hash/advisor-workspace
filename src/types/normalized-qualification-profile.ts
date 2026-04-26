@@ -11,6 +11,7 @@ import type { CurrentWorkspaceCapabilities } from "./workspace-capabilities";
 import type { EffectiveTargetOfferingContext } from "./catalog-target-context";
 import type { ActiveQualificationDefinitionRead } from "./qualification-definition-read";
 import type { NormalizedBritishCurriculumProfile } from "./normalized-british-profile";
+import type { LanguageCertificate } from "./qualification-raw-profile";
 
 // ---------------------------------------------------------------------------
 // Supported normalized families (baseline — no British)
@@ -33,6 +34,12 @@ export interface NormalizedArabicSecondaryProfile {
   gradingScale: string;
   graduationYear: number;
   notesAr: string | null;
+  /**
+   * Optional language certificate (Milestone 2D.1a). Strictly optional —
+   * when absent the field is omitted (NOT null) so the JSONB snapshot
+   * shape is unchanged for callers that do not provide one.
+   */
+  languageCertificate?: LanguageCertificate;
 }
 
 export interface NormalizedAmericanHighSchoolProfile {
@@ -43,6 +50,12 @@ export interface NormalizedAmericanHighSchoolProfile {
   graduationYear: number;
   satTotal: number | null;
   notesAr: string | null;
+  /**
+   * Optional language certificate (Milestone 2D.1a). Strictly optional —
+   * when absent the field is omitted (NOT null) so the JSONB snapshot
+   * shape is unchanged for callers that do not provide one.
+   */
+  languageCertificate?: LanguageCertificate;
 }
 
 export interface NormalizedIBProfile {
@@ -52,6 +65,12 @@ export interface NormalizedIBProfile {
   totalPoints: number;
   graduationYear: number;
   notesAr: string | null;
+  /**
+   * Optional language certificate (Milestone 2D.1a). Strictly optional —
+   * when absent the field is omitted (NOT null) so the JSONB snapshot
+   * shape is unchanged for callers that do not provide one.
+   */
+  languageCertificate?: LanguageCertificate;
 }
 
 // ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@
 
 import type { DirectEvaluationInput } from "./direct-evaluation-orchestration";
 import type { InvokeDirectEvaluationWorkflowResult } from "./direct-evaluation-server-invocation";
+import { validateOptionalLanguageCertificate } from "@/modules/qualification/direct-evaluation-raw-profile";
 
 // ---------------------------------------------------------------------------
 // Transport types
@@ -109,12 +110,39 @@ export function parseDirectEvaluationRouteRequestBody(
         "evaluation.payload must be a non-null object for british_curriculum"
       );
     }
+    // Milestone 2D.1a: optional languageCertificate transport-shape check
+    // for British. Calls the shared validator helper so route parser and
+    // raw-profile validator share one source of truth. On invalid shape,
+    // re-throw as RouteValidationError so the route classifier maps it to
+    // 400 invalid_request_shape (not 500). Absent field is allowed.
+    const britishPayload = eval_.payload as Record<string, unknown>;
+    if (
+      "languageCertificate" in britishPayload &&
+      britishPayload.languageCertificate !== undefined
+    ) {
+      try {
+        validateOptionalLanguageCertificate(britishPayload.languageCertificate);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "invalid languageCertificate shape";
+        throw new RouteValidationError(`evaluation.payload.${message}`);
+      }
+    }
   } else if (SIMPLE_FORM_FAMILIES.has(family)) {
     if (typeof eval_.answers !== "object" || eval_.answers === null) {
       throw new RouteValidationError(
         `evaluation.answers must be a non-null object for ${family}`
       );
     }
+    // Note: simple-form HTTP answer-pipeline wiring of languageCertificate
+    // is intentionally deferred — it would require either a corresponding
+    // active question_set entry in the seed (forbidden in this slice) or
+    // a special-case bypass of validateAnswerKeys in the simple-form
+    // assembler. The normalized simple-form profile types ARE type-ready
+    // (see src/types/normalized-qualification-profile.ts); a future slice
+    // pairing a seed/question addition with assembler wiring will surface
+    // this. The validator + normalizer pass-through paths are tested
+    // directly via direct-evaluation-raw-profile.test.ts in this slice.
   }
 
   // --- optional evaluation.organizationId ---

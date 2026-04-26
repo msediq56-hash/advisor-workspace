@@ -10,6 +10,8 @@
 import type {
   QualificationFamilyKey,
   RawQualificationProfile,
+  LanguageCertificate,
+  LanguageTestTypeKey,
 } from "@/types/qualification-raw-profile";
 
 // ---------------------------------------------------------------------------
@@ -68,10 +70,127 @@ function optionalNumber(obj: Record<string, unknown>, key: string): number | nul
 }
 
 // ---------------------------------------------------------------------------
+// Optional language certificate (shared validator)
+// ---------------------------------------------------------------------------
+
+/** Allowed test type keys for the optional language certificate. */
+const LANGUAGE_TEST_TYPE_KEYS: ReadonlySet<LanguageTestTypeKey> = new Set([
+  "ielts",
+  "toefl",
+  "duolingo",
+  "cambridge",
+  "pte",
+  "other",
+]);
+
+/**
+ * Validate an optional language certificate value and return either the
+ * validated typed object (when present and valid) or `undefined` (when
+ * the field is absent — i.e. the input value is `undefined`). Throws on
+ * invalid shape.
+ *
+ * Critical: this helper returns `undefined` (NOT `null`) for absent
+ * input. Callers must spread the returned value conditionally so the
+ * resulting raw/normalized object OMITS the field entirely when absent.
+ *
+ * Shared by:
+ *   - the family-specific raw-profile validators below
+ *   - the route's transport-shape parser in src/types/direct-evaluation-route.ts
+ *
+ * Validation rules (must match the Milestone 2D.1a contract):
+ *   - testTypeKey ∈ {ielts, toefl, duolingo, cambridge, pte, other}
+ *   - score is a finite number
+ *   - overallScore (if present) is a finite number
+ *   - testTypeOtherLabel (if present) is a string
+ *   - notesAr (if present) is a string
+ *   - testTypeKey === "other" REQUIRES a non-empty testTypeOtherLabel
+ */
+export function validateOptionalLanguageCertificate(
+  value: unknown,
+): LanguageCertificate | undefined {
+  if (value === undefined || value === null) {
+    // Absent field — explicitly do NOT synthesize a null/empty value.
+    return undefined;
+  }
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("languageCertificate must be an object when present");
+  }
+  const obj = value as Record<string, unknown>;
+
+  const testTypeKeyRaw = obj["testTypeKey"];
+  if (typeof testTypeKeyRaw !== "string") {
+    throw new Error("languageCertificate.testTypeKey must be a string");
+  }
+  if (!LANGUAGE_TEST_TYPE_KEYS.has(testTypeKeyRaw as LanguageTestTypeKey)) {
+    throw new Error(
+      `languageCertificate.testTypeKey must be one of: ${[...LANGUAGE_TEST_TYPE_KEYS].join(", ")}`,
+    );
+  }
+  const testTypeKey = testTypeKeyRaw as LanguageTestTypeKey;
+
+  const scoreRaw = obj["score"];
+  if (typeof scoreRaw !== "number" || !Number.isFinite(scoreRaw)) {
+    throw new Error("languageCertificate.score must be a finite number");
+  }
+
+  // Build the validated object, omitting optional fields when absent so
+  // the JSONB snapshot shape stays minimal.
+  const validated: LanguageCertificate = {
+    testTypeKey,
+    score: scoreRaw,
+  };
+
+  if ("overallScore" in obj && obj["overallScore"] !== undefined) {
+    const overall = obj["overallScore"];
+    if (typeof overall !== "number" || !Number.isFinite(overall)) {
+      throw new Error(
+        "languageCertificate.overallScore must be a finite number when present",
+      );
+    }
+    validated.overallScore = overall;
+  }
+
+  if ("testTypeOtherLabel" in obj && obj["testTypeOtherLabel"] !== undefined) {
+    const label = obj["testTypeOtherLabel"];
+    if (typeof label !== "string") {
+      throw new Error(
+        "languageCertificate.testTypeOtherLabel must be a string when present",
+      );
+    }
+    validated.testTypeOtherLabel = label;
+  }
+
+  if ("notesAr" in obj && obj["notesAr"] !== undefined) {
+    const notes = obj["notesAr"];
+    if (typeof notes !== "string") {
+      throw new Error(
+        "languageCertificate.notesAr must be a string when present",
+      );
+    }
+    validated.notesAr = notes;
+  }
+
+  // Cross-field invariant: "other" requires a non-empty label.
+  if (testTypeKey === "other") {
+    if (
+      typeof validated.testTypeOtherLabel !== "string" ||
+      validated.testTypeOtherLabel.trim().length === 0
+    ) {
+      throw new Error(
+        'languageCertificate.testTypeKey === "other" requires a non-empty testTypeOtherLabel',
+      );
+    }
+  }
+
+  return validated;
+}
+
+// ---------------------------------------------------------------------------
 // Family-specific validators
 // ---------------------------------------------------------------------------
 
 function validateArabicSecondary(obj: Record<string, unknown>): RawQualificationProfile {
+  const cert = validateOptionalLanguageCertificate(obj["languageCertificate"]);
   return {
     qualificationFamily: "arabic_secondary",
     countryId: requireString(obj, "countryId", "countryId"),
@@ -80,10 +199,13 @@ function validateArabicSecondary(obj: Record<string, unknown>): RawQualification
     finalAverage: requireNumber(obj, "finalAverage", "finalAverage"),
     gradingScale: requireString(obj, "gradingScale", "gradingScale"),
     graduationYear: requireNumber(obj, "graduationYear", "graduationYear"),
+    // Conditional spread — absent → field omitted, NOT serialized as null.
+    ...(cert !== undefined ? { languageCertificate: cert } : {}),
   };
 }
 
 function validateAmericanHighSchool(obj: Record<string, unknown>): RawQualificationProfile {
+  const cert = validateOptionalLanguageCertificate(obj["languageCertificate"]);
   return {
     qualificationFamily: "american_high_school",
     countryId: requireString(obj, "countryId", "countryId"),
@@ -92,6 +214,7 @@ function validateAmericanHighSchool(obj: Record<string, unknown>): RawQualificat
     gpaScale: requireString(obj, "gpaScale", "gpaScale"),
     graduationYear: requireNumber(obj, "graduationYear", "graduationYear"),
     satTotal: optionalNumber(obj, "satTotal"),
+    ...(cert !== undefined ? { languageCertificate: cert } : {}),
   };
 }
 
@@ -126,16 +249,19 @@ function validateBritishCurriculum(obj: Record<string, unknown>): RawQualificati
     };
   });
 
+  const cert = validateOptionalLanguageCertificate(obj["languageCertificate"]);
   return {
     qualificationFamily: "british_curriculum",
     countryId: requireString(obj, "countryId", "countryId"),
     notesAr: optionalString(obj, "notesAr"),
     header,
     subjects,
+    ...(cert !== undefined ? { languageCertificate: cert } : {}),
   };
 }
 
 function validateIBProfile(obj: Record<string, unknown>): RawQualificationProfile {
+  const cert = validateOptionalLanguageCertificate(obj["languageCertificate"]);
   return {
     qualificationFamily: "international_baccalaureate",
     countryId: requireString(obj, "countryId", "countryId"),
@@ -143,6 +269,7 @@ function validateIBProfile(obj: Record<string, unknown>): RawQualificationProfil
     diplomaType: requireString(obj, "diplomaType", "diplomaType"),
     totalPoints: requireNumber(obj, "totalPoints", "totalPoints"),
     graduationYear: requireNumber(obj, "graduationYear", "graduationYear"),
+    ...(cert !== undefined ? { languageCertificate: cert } : {}),
   };
 }
 

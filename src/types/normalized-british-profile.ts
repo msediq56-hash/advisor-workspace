@@ -5,6 +5,8 @@
  * and countability baseline. No evaluator/result types. No persistence types.
  */
 
+import type { LanguageCertificate } from "./qualification-raw-profile";
+
 /** British subject segment classification. */
 export type BritishSubjectSegmentKey = "o_level" | "as_level" | "a_level" | "other";
 
@@ -35,4 +37,10 @@ export interface NormalizedBritishCurriculumProfile {
   notesAr: string | null;
   header: NormalizedBritishHeader;
   subjects: readonly NormalizedBritishSubjectRecord[];
+  /**
+   * Optional language certificate (Milestone 2D.1a). Strictly optional —
+   * when absent the field is omitted entirely (NOT null) so the JSONB
+   * snapshot shape is unchanged for callers that do not provide one.
+   */
+  languageCertificate?: LanguageCertificate;
 }

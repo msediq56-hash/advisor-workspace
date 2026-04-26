@@ -29,6 +29,14 @@ export interface BritishSubjectAnswerPayload {
 export interface BritishSubjectBasedAnswerPayload {
   header: BritishQualificationHeaderAnswerPayload;
   subjects: readonly BritishSubjectAnswerPayload[];
+  /**
+   * Optional language certificate (Milestone 2D.1a). Loose `unknown` here
+   * mirrors the existing transport pattern — runtime validation lives in
+   * the assembler / raw profile validator (shared helper). When the
+   * client omits this field, the assembler must NOT add it to the raw
+   * profile (preserves existing JSONB normalized snapshot shape).
+   */
+  languageCertificate?: unknown;
 }
 
 /** Assembled and validated British raw profile with workspace context. */

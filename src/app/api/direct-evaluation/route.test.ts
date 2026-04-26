@@ -214,6 +214,94 @@ describe("POST /api/direct-evaluation", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Milestone 2D.1a — British transport-shape: optional languageCertificate
+  //
+  // The route parser must accept a valid certificate and reject malformed
+  // certificate shapes with 400 invalid_request_shape (NOT 500). Absence
+  // of the field is allowed and must not change behavior. The shared
+  // validateOptionalLanguageCertificate helper backs both this transport
+  // check and the raw-profile validator.
+  // -------------------------------------------------------------------------
+
+  it("accepts an authenticated British POST that carries a valid IELTS languageCertificate", async () => {
+    mockInvoke.mockResolvedValue(MOCK_WORKFLOW_RESULT);
+
+    const res = await POST(
+      makeRequest({
+        evaluation: {
+          family: "british_curriculum",
+          offeringId: "offering-1",
+          qualificationTypeKey: "british_a_level",
+          payload: {
+            header: {},
+            subjects: [],
+            languageCertificate: { testTypeKey: "ielts", score: 6.5 },
+          },
+        },
+        sourceProfileId: null,
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockInvoke).toHaveBeenCalledOnce();
+  });
+
+  it("returns 400 invalid_request_shape for british payload with unknown languageCertificate.testTypeKey", async () => {
+    const res = await POST(
+      makeRequest({
+        evaluation: {
+          family: "british_curriculum",
+          offeringId: "offering-1",
+          qualificationTypeKey: "british_a_level",
+          payload: {
+            header: {},
+            subjects: [],
+            languageCertificate: { testTypeKey: "fce_legacy", score: 7 },
+          },
+        },
+        sourceProfileId: null,
+      })
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error.code).toBe("invalid_request_shape");
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 invalid_request_shape for british payload with languageCertificate.testTypeKey="other" missing testTypeOtherLabel', async () => {
+    const res = await POST(
+      makeRequest({
+        evaluation: {
+          family: "british_curriculum",
+          offeringId: "offering-1",
+          qualificationTypeKey: "british_a_level",
+          payload: {
+            header: {},
+            subjects: [],
+            languageCertificate: { testTypeKey: "other", score: 7 },
+          },
+        },
+        sourceProfileId: null,
+      })
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error.code).toBe("invalid_request_shape");
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it("accepts an authenticated British POST without languageCertificate (existing behavior preserved)", async () => {
+    mockInvoke.mockResolvedValue(MOCK_WORKFLOW_RESULT);
+
+    const res = await POST(makeRequest(VALID_BRITISH_BODY));
+
+    expect(res.status).toBe(200);
+    expect(mockInvoke).toHaveBeenCalledOnce();
+  });
+
+  // -------------------------------------------------------------------------
   // 401 — unauthenticated
   // -------------------------------------------------------------------------
 

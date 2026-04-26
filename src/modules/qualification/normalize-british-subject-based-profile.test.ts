@@ -80,3 +80,60 @@ describe("normalizeBritishSubjectBasedRawProfile — canonical grade scale", () 
     expect(normalized.subjects[2].normalizedGradeValue).toBe(5);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Milestone 2D.1a — language certificate pass-through
+//
+// The normalizer is responsible for forwarding the optional
+// languageCertificate from raw to normalized WITHOUT scale conversion or
+// other transformation. Critical contract: when the raw profile does not
+// carry a certificate, the normalized profile MUST OMIT the
+// `languageCertificate` key entirely (NOT serialize it as null) so that
+// existing JSONB normalized snapshots are unchanged for callers that do
+// not provide one.
+// ---------------------------------------------------------------------------
+
+describe("normalizeBritishSubjectBasedRawProfile — languageCertificate pass-through", () => {
+  it("passes a valid IELTS languageCertificate through unchanged", () => {
+    const raw: RawBritishCurriculumProfile = {
+      ...makeRawProfileWithGrades(["A"]),
+      languageCertificate: { testTypeKey: "ielts", score: 7 },
+    };
+
+    const normalized = normalizeBritishSubjectBasedRawProfile(raw);
+
+    expect(normalized.languageCertificate).toEqual({
+      testTypeKey: "ielts",
+      score: 7,
+    });
+  });
+
+  it('passes a Duolingo languageCertificate with notesAr through unchanged (and not pre-normalizing the score scale)', () => {
+    const raw: RawBritishCurriculumProfile = {
+      ...makeRawProfileWithGrades(["B"]),
+      languageCertificate: {
+        testTypeKey: "duolingo",
+        score: 110,
+        notesAr: "نتيجة ديولينغو الرسمية",
+      },
+    };
+
+    const normalized = normalizeBritishSubjectBasedRawProfile(raw);
+
+    expect(normalized.languageCertificate).toEqual({
+      testTypeKey: "duolingo",
+      score: 110,
+      notesAr: "نتيجة ديولينغو الرسمية",
+    });
+  });
+
+  it("OMITS languageCertificate when the raw profile has none (snapshot-shape contract)", () => {
+    const raw = makeRawProfileWithGrades(["A", "B", "C"]);
+    const normalized = normalizeBritishSubjectBasedRawProfile(raw);
+
+    expect(
+      Object.prototype.hasOwnProperty.call(normalized, "languageCertificate"),
+    ).toBe(false);
+    expect(JSON.stringify(normalized)).not.toContain("languageCertificate");
+  });
+});

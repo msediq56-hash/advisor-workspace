@@ -110,8 +110,15 @@ export function assembleValidatedBritishSubjectBasedRawProfile(
 
   const h = payload.header;
 
-  // Assemble candidate
-  const candidate = {
+  // Assemble candidate. Pass languageCertificate through ONLY when present
+  // (Milestone 2D.1a). Absent → omitted from the candidate so the raw
+  // profile and downstream JSONB snapshot do not gain a `languageCertificate`
+  // key. The raw profile validator's shared validateOptionalLanguageCertificate
+  // helper is responsible for shape validation; here we only forward.
+  const hasLanguageCertificate =
+    "languageCertificate" in payload && payload.languageCertificate !== undefined;
+
+  const candidate: Record<string, unknown> = {
     qualificationFamily: "british_curriculum" as const,
     countryId: h.countryId,
     notesAr: optionalStringField(h.notesAr),
@@ -127,6 +134,10 @@ export function assembleValidatedBritishSubjectBasedRawProfile(
       notesAr: optionalStringField(s.notesAr),
     })),
   };
+
+  if (hasLanguageCertificate) {
+    candidate.languageCertificate = payload.languageCertificate;
+  }
 
   // Validate through existing raw profile validator
   const validated = validateRawQualificationProfile(candidate);

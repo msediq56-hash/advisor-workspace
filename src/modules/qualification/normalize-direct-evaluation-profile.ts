@@ -22,6 +22,16 @@ import type { NormalizedDirectEvaluationInput, NormalizedQualificationProfile } 
 function normalizeProfile(bundle: DirectEvaluationInputBundle): NormalizedQualificationProfile {
   const raw = bundle.rawProfile;
 
+  // Milestone 2D.1a: pass languageCertificate through ONLY when present.
+  // Absent → field omitted from the normalized profile (NOT serialized as
+  // null) so existing JSONB normalized snapshot shapes are unchanged for
+  // callers that do not provide a certificate. This is hoisted to a single
+  // local because the conditional spread is identical across families.
+  const certPart =
+    raw.languageCertificate !== undefined
+      ? { languageCertificate: raw.languageCertificate }
+      : {};
+
   switch (raw.qualificationFamily) {
     case "arabic_secondary":
       return {
@@ -32,6 +42,7 @@ function normalizeProfile(bundle: DirectEvaluationInputBundle): NormalizedQualif
         gradingScale: raw.gradingScale,
         graduationYear: raw.graduationYear,
         notesAr: raw.notesAr,
+        ...certPart,
       };
 
     case "american_high_school":
@@ -43,6 +54,7 @@ function normalizeProfile(bundle: DirectEvaluationInputBundle): NormalizedQualif
         graduationYear: raw.graduationYear,
         satTotal: raw.satTotal,
         notesAr: raw.notesAr,
+        ...certPart,
       };
 
     case "international_baccalaureate":
@@ -53,6 +65,7 @@ function normalizeProfile(bundle: DirectEvaluationInputBundle): NormalizedQualif
         totalPoints: raw.totalPoints,
         graduationYear: raw.graduationYear,
         notesAr: raw.notesAr,
+        ...certPart,
       };
 
     case "british_curriculum":

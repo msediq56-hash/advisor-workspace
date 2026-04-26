@@ -148,5 +148,12 @@ export function normalizeBritishSubjectBasedRawProfile(
       notesAr: rawProfile.header.notesAr,
     },
     subjects,
+    // Milestone 2D.1a: pass-through only when present. Absent → field
+    // omitted from the normalized profile (NOT serialized as null) so
+    // existing JSONB normalized snapshot shapes are unchanged for callers
+    // that do not provide a certificate.
+    ...(rawProfile.languageCertificate !== undefined
+      ? { languageCertificate: rawProfile.languageCertificate }
+      : {}),
   };
 }
