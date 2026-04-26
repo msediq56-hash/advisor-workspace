@@ -18,11 +18,16 @@
  *     POST that references the seeded same-org student_profiles row
  *     (added in Milestone 2C.1) passes the ownership guard and persists,
  *     and the FK on evaluation_runs.source_profile_id is satisfied.
+ *   - Role-based 403 (Milestone 2C.2): an authenticated POST with
+ *     evaluation.allowedRoles excluding the seeded advisor's role
+ *     ("advisor") returns 403 access_denied through requireActorAccess
+ *     → requireOrgRole. Exact-match-only role inclusion (no hierarchy);
+ *     the assertion uses ["owner"] to reliably exclude "advisor".
  *
  * DOES NOT VALIDATE:
- *   - Cross-organization isolation, role-based 403, multi-membership
- *     selection, RLS isolation. RLS coverage stays in Milestone 1 RLS
- *     migrations 00010–00017.
+ *   - Cross-organization sourceProfileId, multi-active-membership
+ *     selection (409 org_selection_required), RLS isolation. RLS coverage
+ *     stays in Milestone 1 RLS migrations 00010–00017.
  *
  * PREREQUISITES:
  *   1. Local Supabase up: `npx supabase status`.
@@ -114,6 +119,16 @@ const ROUTE_URL = `${NEXT_BASE_URL}${ROUTE_PATH}`;
 // A random UUID that is extremely unlikely to exist in any seeded table.
 // Used to exercise the unified outward source-profile failure (403).
 const NONEXISTENT_SOURCE_PROFILE_ID = "99999999-9999-9999-9999-999999999999";
+
+// Roles that exclude the seeded advisor's role_key ("advisor"). Used by
+// assertion G to drive the requireActorAccess role check through
+// requireOrgRole. Role inclusion is exact-match-only (no hierarchy), so any
+// list containing only roles other than "advisor" must reject the request.
+// Must be a non-empty array — an empty array would skip the role check
+// entirely. Must contain only roles from {owner, manager, advisor}, otherwise
+// the route's transport parser would reject the request as 400
+// invalid_request_shape instead of 403 access_denied.
+const ROLES_EXCLUDING_ADVISOR = ["owner"] as const;
 
 const HAPPY_REQUEST_BODY = {
   sourceProfileId: null as string | null,
@@ -566,6 +581,43 @@ async function assertF_MatchingOrgSourceProfile(cookieHeader: string): Promise<v
   );
 }
 
+async function assertG_RoleBasedAccessDenied(cookieHeader: string): Promise<void> {
+  // Same authenticated cookie + same valid happy-path British payload, but
+  // evaluation.allowedRoles narrows access to "owner" only. The seeded
+  // membership is role_key "advisor", so requireActorAccess →
+  // requireOrgRole must throw "Insufficient role: 'advisor' not in [owner]"
+  // and the route classifier must map it to 403 access_denied. The role
+  // guard fires inside requireActorAccess BEFORE the workflow runs, so no
+  // run/result/traces are persisted by this assertion.
+  const roleDeniedBody = {
+    ...HAPPY_REQUEST_BODY,
+    evaluation: {
+      ...HAPPY_REQUEST_BODY.evaluation,
+      allowedRoles: ROLES_EXCLUDING_ADVISOR,
+    },
+  };
+
+  const { status, body, rawText } = await postRoute({
+    rawBody: JSON.stringify(roleDeniedBody),
+    cookieHeader,
+  });
+
+  if (status !== 403) {
+    fail(
+      "G: role-based 403 status",
+      `expected 403 but got ${status}: ${rawText.slice(0, 500)}`,
+    );
+  }
+  // Only the code is asserted; the message text comes from requireOrgRole
+  // and is intentionally not pinned here to avoid coupling the smoke to
+  // internal phrasing.
+  expectErrorBody("G: role-based 403 error body", body, "access_denied");
+  pass(
+    "G: role-based 403 — advisor rejected by allowedRoles=['owner']",
+    "403 access_denied",
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -594,6 +646,7 @@ async function main() {
   await assertD_InvalidRequestShape(cookieHeader);
   await assertE_SourceProfileGuard(cookieHeader);
   await assertF_MatchingOrgSourceProfile(cookieHeader);
+  await assertG_RoleBasedAccessDenied(cookieHeader);
 
   console.log("\n--- Summary ---");
   const okCount = results.filter((r) => r.ok).length;
